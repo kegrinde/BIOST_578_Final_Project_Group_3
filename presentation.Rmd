@@ -13,3 +13,5 @@ install_github('derfinder', 'alyssafrazee')
 # need to install Genominator, limma, HiddenMarkov, splines, and locfdr
 
 ```
+
+I cloned Alyssa's github repo and have started analyzing the data there. I'll copy over the processed data and analysis scripts when that's complete.
