@@ -1,0 +1,15 @@
+---
+title: "DER Finder"
+author: "Kelsey Grinde"
+date: "3/2/2015"
+output: html_document
+---
+
+First we need to install DER Finder from github and load any other necessary packages.
+```{r install-packages}
+library(devtools)
+install_github('derfinder', 'alyssafrazee')
+
+# need to install Genominator, limma, HiddenMarkov, splines, and locfdr
+
+```
