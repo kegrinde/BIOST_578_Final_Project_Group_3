@@ -1,0 +1,59 @@
+---
+title: "Notes from reading paper"
+author: "Kelsey Grinde"
+date: "2/25/2015"
+output: word_document
+---
+
+# Important Links
+
+Link to [paper](http://biostatistics.oxfordjournals.org/content/early/2014/01/06/biostatistics.kxt053.full)
+
+Link to Alyssa's [github repo](https://github.com/alyssafrazee/derfinder)
+
+# Basic Idea
+
+1. Identify DERs (differentially expressed regions) by assessing DE at each base
+2. Divide genome into regions of bases with similar DE signal
+3. Calculate statistical significance for each region
+4. [Optional] annotate DERs using reference database (i.e., assign established gene names, etc. to DERs)
+
+# Introduction
+1. RNA-seq gives us transcript-level data; Transcript = molecule associated with expression at the RNA level
+2. Current methods over-simplify the biology
+3. Use RNA-seq data to look for DE (transcripts showing different avg expression levels across 2 populations)
+4. RNA-seq gives us reads which we then have to summarize into units of expression
+5. Two categories of existing approaches: (1) annotate-then-identify (count number of genes falling in previously identified boundaries of known genes) and (2) assemble-then-identify (assemble full transcripts directly from reads)
+6. Propose new method: identify-then-annotate
+
+# Section 2: review of existing methods
+
+# Section 3: propose DER Finder
+Fit linear regression model to each row of coverage matrix
+
+Utilizes LIMMA for estimating contrasts
+
+# Section 4: application of DER Finder and comparision to other methods
+compare male and female gene expression on Y chrom.
+
+# Supplemental Data
+
+http://biostatistics.oxfordjournals.org/content/suppl/2014/01/06/kxt053.DC1/kxt053supp_data.pdf
+
+Includes:
+
+* more details on method
+* more details about analysis methods:
+  - data
+  - alignment
+  - comparison to Cufflinks, EdgeR, DESeq
+
+# More Information
+Alyssa's PhD defense talk presentation slides: https://speakerdeck.com/alyssafrazee/high-resolution-gene-expression-analysis
+
+And another presentation about DER Finder here: https://speakerdeck.com/alyssafrazee/rna-seq-analysis-beyond-gene-counting
+
+
+
+
+
