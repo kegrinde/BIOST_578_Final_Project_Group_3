@@ -45,4 +45,10 @@ Then we can annotate the DERs (optional).
 
 # Discussion
 
+<<<<<<< HEAD
 # Questions?
+=======
+```
+
+I cloned Alyssa's github repo and have started analyzing the data there. I'll copy over the processed data and analysis scripts when that's complete.
+>>>>>>> 7c65843f7ae95d13a540fab4ef4334e93c780289
