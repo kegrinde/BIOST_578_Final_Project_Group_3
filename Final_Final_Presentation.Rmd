@@ -1,0 +1,58 @@
+---
+title: "BIOST 578 - Final Project - RNA-seq analysis with DER Finder"
+author: "Kelsey Grinde, Yatong Li, Xiaowen Tian"
+date: "3/5/2015"
+output: slidy_presentation
+---
+
+## Differential expression analysis of RNA-seq data at single-base resolution
+
+Authors: Alyssa Frazee, Sarven Sabunciyan, Kasper Hansen, Rafael Irizarry and Jeffrey Leek
+
+Outline of talk:
+
+- Introduction/motivations
+- Overview of methods: linear models, HMMs, permutation tests
+- Reproduction of some of the paper's results
+- Discussion/questions
+
+## Introduction
+
+- introduce context and motivations for paper
+- relate to what we learned in class
+
+## Methods - Outline
+
+1. Quantify DE at each base using linear model framework
+2. Identify DERs using HMM
+3. Assess significance of DERs using permutation test
+
+## Methods - Quantify DE at each base using linear model framework
+
+- explain methods (show the equation, can use latex syntax, e.g., $g(x)=\beta$)
+- relate to LIMMA
+
+## Methods - Identify DERs using HMM
+
+- overview of concepts/basic ideas/purpose (maybe avoid technical details? or go into only if time allows?)
+
+## Methods - Assess significance of DERs using permutation test
+
+- explain concepts behind permutation test
+- briefly describe methods
+
+## Results
+
+comparing DER Finder to other methods:
+- Y chromsome example data
+
+## Discussion
+
+Advantages and limitations of this approach
+
+## Thanks!
+Many thanks to the original authors for their documentation, code, and data on github that made it much easier to reproduce their results! 
+Thanks also to Raphael and Brian for giving us the knowledge and resources necessary to complete this project.
+
+## Questions?
+

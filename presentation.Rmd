@@ -5,11 +5,44 @@ date: "3/2/2015"
 output: html_document
 ---
 
+# Introduction
+
+# Methods
+
+# Results
+We will walk through how to reproduce some of the results from the paper.
+
 First we need to install DER Finder from github and load any other necessary packages.
-```{r install-packages}
-library(devtools)
-install_github('derfinder', 'alyssafrazee')
+```{r install-packages, cache=T}
+suppressMessages(library(devtools))
+suppressMessages(install_github('derfinder', 'alyssafrazee'))
 
 # need to install Genominator, limma, HiddenMarkov, splines, and locfdr
+suppressMessages(library('Genominator'))
+suppressMessages(library('limma'))
+suppressMessages(library('HiddenMarkov'))
 
+# splines and locfdr no longer exist.. we need to find online
+library('locfdr')
+library('splines')
 ```
+
+Then we would need to preprocess our data.
+- align reads using TopHat
+- calculate coverage at each base
+- merge files to create a matrix with coverage for each base in each sample
+
+Then we load the data.
+
+Then we run analysis at each base.
+
+Then we fit an HMM to find DERs.
+
+Then we get p-values for each DER.
+
+Then we can annotate the DERs (optional).
+
+
+# Discussion
+
+# Questions?
