@@ -32,6 +32,20 @@ Outline of talk:
 - explain methods (show the equation, can use latex syntax, e.g., $g(x)=\beta$)
 - relate to LIMMA
 
+## Methods - Quantify DE at each base using linear model framework
+- A coverage matrix has rows corresponding to bases and columns corresponding to smaples.
+- Each entry $Y_{ij}$ of the coverage matrix is the number of aligned reads from from sample $i$ that overlap base $j$.
+- We fit a linear regression model to each row of the coverage matrix: $$g(Y_{ij}) = \alpha(l_j) + \beta(l_j)X_{pi} + \sum_{k=1}^K \gamma_k(l_j)W_{ik} + \epsilon_{ij}$$
+
+  
+## Methods - Quantify DE at each base using linear model framework (cont.)
+- $$g(Y_{ij}) = \alpha(l_j) + \beta(l_j)X_{pi} + \sum_{k=1}^K \gamma_k(l_j)W_{ik} + \epsilon_{ij}$$
+- $\alpha(l_j)$: baseline gene expression (coverage)
+- $X_{i}$: indicator of whether sample $i$ is a case or a control
+- $\beta(l_j)$: parameter of interest quantifying differential expression between case and control at location $l_j$.
+- $W_{ik}$: values of potential confounders for sample $i$ (e.g. GC content effect).
+- $\epsilon_{ij}$: residual measurement error at location $j$.
+
 ## Methods - Identify DERs using HMM
 
 - overview of concepts/basic ideas/purpose (maybe avoid technical details? or go into only if time allows?)
