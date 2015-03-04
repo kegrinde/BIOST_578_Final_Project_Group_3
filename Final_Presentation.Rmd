@@ -87,6 +87,8 @@ The permutation procedure:
 
 - Repeat the permutation percedure $B$ times, and calculate $$p_r = \frac{\sum^B_{b=1}\sum^{P_b}_{\rho=1}I(\bar{s}^0_{\rho=1}>\bar{s_r})}{\sum^B_{b=1}P_b}$$
 
+where $P_b$ is the number of null DERs for permutation $b$.
+
 - This is the percent of null DERs with average statistic as or more extreme than the observed statistic for candidate DER $r$ calculated on the observed data.
 
 ## Results
