@@ -2,7 +2,7 @@
 title: "BIOST 578 - Final Project - RNA-seq analysis with DER Finder"
 author: "Kelsey Grinde, Yatong Li, Xiaowen Tian"
 date: "3/5/2015"
-output: slidy_presentation
+output: ioslides_presentation
 ---
 
 ## Differential expression analysis of RNA-seq data at single-base resolution
@@ -46,14 +46,48 @@ Outline of talk:
 - $W_{ik}$: values of potential confounders for sample $i$ (e.g. GC content effect).
 - $\epsilon_{ij}$: residual measurement error at location $j$.
 
-## Methods - Identify DERs using HMM
+## Methods - Identify DERs using HMMs
 
-- overview of concepts/basic ideas/purpose (maybe avoid technical details? or go into only if time allows?)
+- $H_0: \beta(l_j) = 0$
+- test statistic: $s(l_j)$, which is modeled by Hidden Markov models (HMMs).
+- Assume the genome $D(l)$ has three hidden states:
+1. $D(l) = 0$ if $\alpha(l) = \beta(l) = 0$
+2. $D(l) = 1$ if $\alpha(l) \neq 0$ and $\beta(l) = 0$: regions for which gene expression is observed but does not differ between populations.
+3. $D(l) = 2$ if $\beta(l) \neq 0$: regions in the differentially expressed state.
+
+## Methods - Identify DERs using HMMs (cont.)
+- Each hidden state has a probability, which is roughtly estimated based on the relative frequencies of bases covered or not covered by genes, along with a prior estimate of the number of differentially expressed genes.
+- We assume the $s(l)$ follows a normal distribution, conditional on the hidden state of each base $l$.
+- We then estimate the unovserved states $D(l)$ based on the observed statistics $s(l)$ using HMMs.
+
+## Methods - Assess significance of DERs using permutation test
+- explain concepts behind permutation test
+- briefly describe methods
 
 ## Methods - Assess significance of DERs using permutation test
 
-- explain concepts behind permutation test
-- briefly describe methods
+- The HMM segments the genome into regions, where a region is defined as a set of continuous bases having the same predicted latent state.
+- We refer to a region with predicted latent state $D(l)=2$ as a candidate DER.
+- The average base-level test statistic within each potential DER $r$ is $\bar{s}_r = \sum_{l \in DER_r}s(l)$.
+
+## Methods - Assess significance of DERs using permutation test (cont.)
+
+The permutation procedure:
+
+1. Permute the each column (sample $i$) in the coverage matrix.
+
+2. Re-calculate the base-level statistics based on the linear model, which is denoted as the null statistics $s^0(l)$.
+
+3. Re-run the HMM on the $s^0(l)$ to identify a set of null DERs: $DER^0_{\rho}$.
+
+4. Calculate the null test statistics for each region and their averages: $DER \bar{s}^0_{\rho} = \sum_{l \in DER^0_\rho}s^0(l)$.
+
+
+## Methods - Assess significance of DERs using permutation test (cont.)
+
+- Repeat the permutation percedure $B$ times, and calculate $$p_r = \frac{\sum^B_{b=1}\sum^{P_b}_{\rho=1}I(\bar{s}^0_{\rho=1}>\bar{s_r})}{\sum^B_{b=1}P_b}$$
+
+- This is the percent of null DERs with average statistic as or more extreme than the observed statistic for candidate DER $r$ calculated on the observed data.
 
 ## Results
 
