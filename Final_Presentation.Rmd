@@ -117,7 +117,7 @@ tt = tstats$tt
 logfchange = tstats$logfchange
 ```
 
-## Results - Steps two, three, and four: finding the DERs, assessing significance, matching to annotated exons
+## Results - Finding the DERs, assessing significance, matching to annotated exons
 
 - Step two: group bases into regions using HMMs (`getRegions` function)
 - Step three: assess significance of each regoin using a permutation test
@@ -143,19 +143,19 @@ regions = data.frame(regions.merged.y,pvals,qvals = p.adjust(pvals, method="fdr"
 regions.men = data.frame(regions.merged.men,pvals = pvals.men, qvals = p.adjust(pvals.men, method="fdr"))
 ```
 
+This looks (somewhat) like what we would expect (i.e., uniform).
+
 ```{r, echo = F}
 hist(pvals.men,breaks=30,col="gray70",main="Y chromosome p values: our method, men only",xlab="p values")  # I think this should be more or less uniform
 ```
 
-This looks (somewhat) like what we would expect (i.e., uniform).
-
 ## Reproducing results: P-values for males versus females
+
+Does this look like what we would expect?
 
 ```{r, echo = F}
 hist(pvals,breaks=30,col="gray70",main="Y chromosome p values: our method",xlab="p values") 
 ```
-
-Does this look like what we would expect?
 
 ## Reproducing results: P-values for males versus females
 
@@ -163,7 +163,7 @@ This is what the p-values look like in the original paper:
 
 ![Supplemental Figure 6](orig_supp_fig_6.PNG)
 
-## Reproducing figures: MA plots (Figure 3)
+## Reproducing figures: MA plots
 
 ```{r ma-plots-setup, echo = F, eval = F}
 ### This takes awhile so results stored in .rda file..
@@ -200,8 +200,9 @@ for(i in 1:dim(regions.merged.men)[1]){
 }
 ```
 
-We can also reproduce the MA plots for DER Finder. They look like this:
-```{r make-ma-plots, echo = F}
+We can also reproduce the MA plots for DER Finder. Recall: these figures show the relationship between average expression (M) for each region and its magnitude of differental expression (fold change; A)
+
+```{r make-ma-plots, echo = F, cache = T}
 # load in necessary data
 load("coverage.means.sex-rev.rda")
 load("coverage.means.men-rev.rda")
@@ -222,9 +223,8 @@ plot(all.avg, sex.diff,xlab="A",ylab="M",col="#FF000050",main="DER Finder - over
 points(male.avg,male.diff,col="#0000FF50",pch=19)
 ```
 
-Recall: these figures show the relationship between average expression (M) for each region and its magnitude of differental expression (fold change; A)
 
-## Reproducing figures: MA plots (Figure 3)
+## Reproducing figures: MA plots
 
 But the original figure looks like this. Just as we would expect, we see large fold changes in expression when comparing males to females, but not much change comparing males to each other.
 
@@ -235,10 +235,10 @@ But the original figure looks like this. Just as we would expect, we see large f
 The paper found: 
 
 - many DERs on Y chromosome between males and females
-- quite a few of thse were novel (not previously annotated)
+- quite a few of those were novel (not previously annotated)
 - no DE comparing males and males
 - performance better than Cufflinks, comparable with EdgeR and DESeq
-- major advantafe: is not limited to previously annotated features
+- major advantage: is not limited to previously annotated features
 
 ## Conclusions regarding our reproduction of results
 
@@ -259,7 +259,7 @@ The `derfinder` package was written in an older version of R. Since then, some t
 - packages removed from CRAN
 - updates made to public databases (such as Ensembl genome used for annotation)
 
-Conclusion: Even "reproducible research" is not always reproducible!
+Conclusion: Even "reproducible research" is not always easy to reproduce!
 
 ## Questions?
 
