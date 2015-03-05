@@ -2,7 +2,7 @@
 title: "BIOST 578 - Final Project - RNA-seq analysis with DER Finder"
 author: "Kelsey Grinde, Yatong Li, Xiaowen Tian"
 date: "3/5/2015"
-output: slidy_presentation
+output: ioslides_presentation
 ---
 
 ## Differential expression analysis of RNA-seq data at single-base resolution
@@ -16,10 +16,85 @@ Outline of talk:
 - Reproduction of some of the paper's results
 - Discussion/questions
 
-## Introduction
+## Introduction & Review
+### Microarrays and RNA-seq
+The most common goal among investigators using either microarrays or RNA-seq is detecting differential expression.
 
-- introduce context and motivations for paper
-- relate to what we learned in class
+- In microarrays, measurement units are fixed in advance, only the abundance on the specific RNA sequences that correspond to probes on the microarrays are measured. Within this approach, measurements from the same probe are compared across samples.
+
+## Introduction & Review
+### Microarrays and RNA-seq
+- RNA-seq reads out short sequences of molecules produced by shearing and reading RNA transcripts. Unlike microarray, across-sample comparisons are not straightforward as measurement units are not defined in advance. Therefore, reads must be summarized into units of expression before differential expression analysis can be performed. Different summarization approaches can lead to very different statistical inference.
+
+## Introduction & Review
+### RNA-seq data analysis process
+* First, each read must be matched to the position it originates from in the genome in a process called alignment.
+* Then, the number of reads aligned to specific regions must be summarized into quantitative measurements.
+* The measurements are then normalized for the total number of reads measured for a particular sample and statistical models are applied to the summarized units.
+
+## Introduction & Review
+Based on the summarization step, current differential expression analysis methods for RNA-seq data fall into two broad classes.
+
+  1. Annotate-then-identify, which quantify expression within the boundaries of genes previously published in databases. 
+  2. Assemble-then-identify, which attempt to reconstruct full length RNA transcripts.
+
+## Introduction & Review
+### Annotate-then-identify
+- Summarize the reads by counting the number that fall within pre-specified exons or genes, where the raw measurements take the form of counts. Annotations are obtained from database of previously identified genomic features. 
+- Two of the most widely used methods are EdgeR and DESeq.
+
+## Introduction & Review
+### Annotate-then-identify
+- Advantage
+1. This approach provides a straightforward and interpretable analysis. Once the raw read counts have been summarized into a gene-level matrix, the statistical problem is very similar to statistical analysis of microarray data. These methods are natural extensions of methods developed for microarrays. 
+
+## Introduction & Review
+### Annotate-then-identify
+- Disadvantage
+1. This approach relies heavily on the accuracy of annotation databases of genes and exon boundaries, and current annotation may be unreliable or hard to interpret.  
+2. This approach does not allow for discovery of novel or previously uncharacterized exons or genes, since they rely on previously constructed databases.
+
+## Introduction & Review
+### Annotate-then-identify
+<img src="Images/count_modes.png" width=400>
+
+
+## Introduction & Review
+### Assemble-then-identify
+- Reconstruct the full-length transcript sequences from short reads.
+- Estimate the relative abundances of transcripts.
+- Predict which transcripts have different abundance between the two samples. 
+
+## Introduction & Review
+### Assemble-then-identify
+- Advantage
+1. This approach relies less heavily on annotation databases of exon or gene boundaries. 
+2. This approach aims to fully quantify all the potential isoforms of mRNA molecules emanating from each gene.
+
+## Introduction & Review
+### Assemble-then-identify
+- Disadvantage
+1. It is virtually impossible to determine which of many possible sets of assembled transcripts truly generated the observed RNA-seq data. This ambiguity leads to varying and structured covariances between transcript measurements within genes, which complicates statistical analysis.
+2. There is also an increased computational cost associated with assembling full transcripts, quantifying their abundances, and performing transcript-level statistical tests.
+
+## Introduction & Review
+### Identify-then-annotate
+- First summarize the reads by counting the number of reads with alignments overlapping each individual base in the genome. 
+- Then a base-by-base statistical test is performed to identify bases that are differentially expressed between groups. Consecutive bases showing a common differential expression signature are grouped into differentially expressed regions (DERs). 
+- The unit of statistical analysis is then the DER, which can be compared with previous databases of exons and genes to identify regions of differentially expression corresponding to known exons or genes and novel regions of differential expression.
+
+## Introduction & Review
+### Identify-then-annotate
+- Advantage
+1. Allows for detection of differential expression in regions outside of exons or genes.
+2. Allows for direct evaluation of differential expression of known exons and genes.
+3. Does not incur the added ambiguity and computational cost of assembly from short reads.
+4. Can detect differential splicing patterns and other expression differences between populations.
+
+## Introduction & Review
+### Identify-then-annotate
+- Disadvantage
+1. Does not allow for direct quantification of alternative transcription. Regions of potential alternative transcription can be easily identified where a subset of exons for a gene overlaps DERs but another subset does not, and those regions could be explored further with other tools.
 
 ## Methods - Outline
 
