@@ -57,7 +57,7 @@ samtools index orbFrontalF58_Y.bam
 # Calculate coverage for each base
 Then we need to calculate the coverage for each base. To do this, first go back to the root directory (`cd ~/Documents/derfinder`) and then run `countReads.py` on each file in the data subdirectory. Alyssa's README warns it might take awhile, but it only took us a few minutes on the server, again using the bash shell with interface through RStudio (Tools > Shell).
 
-```{python, eval = F}
+```{engine=python, eval = F}
 python countReads.py -f data/orbFrontalF11_Y.bam -o orbFrontalF11_Y_bybp -k 101 -c Y
 python countReads.py -f data/orbFrontalF1_Y.bam -o orbFrontalF1_Y_bybp -k 101 -c Y
 python countReads.py -f data/orbFrontalF23_Y.bam -o orbFrontalF23_Y_bybp -k 101 -c Y
@@ -268,7 +268,7 @@ save(pvals, file="Y-pvals-men-rev.rda") # now we save 19736 pvals, one per regio
 
 ## Analyze Results
 
-First we'll get the exon annotation information. When this code was first written by the authors, they got the ENSEMBL GRCh37 version, but when we run this same code we now get GRCh38, which appears to have a few more annotated exons.
+First we'll get the exon annotation information. When this code was first written by the authors, they got the ENSEMBL GRCh37 version, but when we run this same code we now get GRCh38, which appears to have a few more annotated exons. The purpose of annotation is to be able to compare the DER Finder results to the other methods, particulary EdgeR and DESeq, which look for differential expression only in previously annotated regions.
 
 ```{r get-exon-data, eval = F}
 ## load in the exon annotation (ENSEMBL GRCh37) --> now GRCh38
@@ -368,7 +368,7 @@ rep_exons = names(table(myinfo$ex.names))[table(myinfo$ex.names)>1]
 repsub = subset(myinfo, ex.names %in% rep_exons)
 percentsplit = split(repsub$ex.pct, repsub$ex.names)
 qsplit = split(repsub$qvals.ex, repsub$ex.names)
-sum(names(qsplit) != rep_exons) ## should be zero... something's wrong here
+sum(names(qsplit) != rep_exons) ## should be zero
 newpct = sapply(percentsplit, sum, USE.NAMES=FALSE)
 newq = sapply(1:length(qsplit), function(i){
     qsplit[[i]][which.max(percentsplit[[i]])]
@@ -386,7 +386,7 @@ checkunique = function(x){
   sum(ensYexons$exon_id==x)
 }
 checkexons = unlist(lapply(myinfo.updated$ex.names, checkunique))
-table(checkexons) #no id issues
+table(checkexons) 
 foo = which(unlist(lapply(myinfo.updated$ex.names, checkunique))>1)
 
 # same thing for men:
@@ -403,27 +403,24 @@ ex.names.m = unlist(ex.names.m)
 ex.class.m = unlist(ex.class.m)
 ex.pct.m = unlist(ex.pct.m)
 myinfo.m = data.frame(qvals.ex.m, ex.names.m, ex.class.m, ex.pct.m)
-min(myinfo.m$qvals.ex.m) #the min q-value here is 0.86, so nothing will show up in the table. # KEG: mine is 0.935
+min(myinfo.m$qvals.ex.m) #the min q-value here is 0.86, so nothing will show up in the table. # KEG: mine is 0.936
 
-### KEG: I think differences in results are due to different ensembl file...
+### KEG: I think differences in annotation results may be due to different ensembl file...
 
 ```
 
 In the paper, the authors present some statistics which we currently are unable to replicate...
 ```{r stats-in-paper}
 # some miscellaneous statistics (included in results/text of manuscript)
-sum(ders$qvals<0.05) #534
-sum(ders$qvals<0.05 & ders$state==4) #6
-length(which(ders$flag=="novel" & ders$qvals<0.05)) #280
-summary(ders$length[which(ders$flag=="novel" & ders$qvals<0.05)]) #range: 1-3814
+sum(ders$qvals<0.05) #they had 534
+sum(ders$qvals<0.05 & ders$state==4) #they had 6
+length(which(ders$flag=="novel" & ders$qvals<0.05)) #they had 280
+summary(ders$length[which(ders$flag=="novel" & ders$qvals<0.05)]) # they had range: 1-3814
 de.exons = myinfo.sub$ex.names[which(myinfo.sub$qvals.ex<0.05 & myinfo.sub$ex.pct>=0.8)]
-length(unique(de.exons)) #411, and "novel" is not included.
+length(unique(de.exons)) #they had 411, and "novel" is not included.
 genes.represented = ensYexons$geneName[which(ensYexons$exon_id %in% unique(de.exons))]
-length(unique(genes.represented)) #33
-min(ders.men$qvals) #0.86
-min(tx.sex.cuff.y.ok$qvalue) #0.45
-min(tx.null.cuff.y.ok$qvalue) #0.63
-sum(tx.sex.cuff.y.ok$value_female==0 & tx.sex.cuff.y.ok$value_male!=0) #736
+length(unique(genes.represented)) #they had 33
+min(ders.men$qvals) #they had 0.86
 ```
 
 Next the paper gets results for three other methods: Cufflinks, DESeq, and EdgeR but this is beyond the scope of our project (plus, it looks like we're missing a file we need to get the Cufflinks results).
@@ -492,7 +489,8 @@ dev.off()
 
 ## Figure 2
 
-```{r code-for-fig2}
+We encounter issues trying to reproduce this figure because it relies on our attempt to annotate the DERs which is not matching with the original paper due to the updated GRCh38 genome.
+```{r code-for-fig2, eval  = F}
 ## setup for plotting:
 gro = list()
 gro$states = regions.merged.y
@@ -508,25 +506,18 @@ ensYexons.forplot = ensYexons
 names(ensYexons.forplot)[1] = "geneName"
 names(ensYexons.forplot)[3] = "name"
 
-
-
 ## find some exons:
 #(make sure to first run the "setup for plotting" section earlier)
 
-myinfo.cmp = subset(myinfo.sub, ex.names %in% rownames(edger.results))
-plotExon(gro, exonname = "ENSE00001435537", tstats = tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="Y", group=group.l, scalefac=32, ylim=c(4.2,8), bppad=500)
+myinfo.cmp = subset(myinfo.sub, ex.names %in% rownames(edger.results)) # get error here
+plotExon(gro, exonname = "ENSE00001435537", tstats = tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised-kegrinde.db", tabname="chrY", chromosome="Y", group=group.l, scalefac=32, ylim=c(4.2,8), bppad=500)
 
 myinfo.cmp[108,] #q=0.001, 61.3% of an exon
-edger.results[which(rownames(edger.results)=="ENSE00001435537"),] #q=1
-des.res[des.res$id=="ENSE00001435537",] #q=1
 
 which(regions.merged.y$length>400 & regions.merged.y$state==3)[100]
-plotRegion(gro, ind=13047, tstats=tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="chrY", group=group.l,scalefac=32, ylim=c(4.5, 7.5))
+plotRegion(gro, ind=13047, tstats=tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised-kegrinde.db", tabname="chrY", chromosome="chrY", group=group.l,scalefac=32, ylim=c(4.5, 7.5))
 
-setEPS()
-postscript("wrong-exon-II.eps")
 plotExon(gro, exonname = "ENSE00001435537", tstats = tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="Y", group=group.l, scalefac=32, ylim=c(4.2,8), bppad=500)
-dev.off()
 
 regions.merged.y[45,]
 ders[which(ders$start== 2714305),] #q = 0.006
@@ -543,7 +534,7 @@ dev.off()
 
 # after examining the "novel_plots.pdf" file:
 which(regions.merged.y$start==20662506) #11154
-plotRegion(gro, ind=11154, tstats=tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="chrY", group=group.l,scalefac=32,ylim=c(5,7), legendloc = "topleft")
+plotRegion(gro, ind=11154, tstats=tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised-kegrinde.db", tabname="chrY", chromosome="chrY", group=group.l,scalefac=32,ylim=c(5,7), legendloc = "topleft")
 # great, plus overlaps ESTs but no genes.
 # get the q-value:
 which(ders$start==20662506) #1670
@@ -571,12 +562,14 @@ dev.off()
 
 ## Figure 3
 
+We can reproduce this (saved as `Figure 3 - Replicate.png`), but unfortunately it does not look like the plots in the original paper.
+
 ```{r code-for-fig3}
 #(b)  MA plots [FIGURE 3]
 
 # for DER Finder - get mean coverage for each sample for each region.
 coverage.means = matrix(nrow = dim(regions.merged.y)[1], ncol = 15)
-dbfile = "Y-tophat-revised.db"
+dbfile = "Y-tophat-revised-kegrinde.db"
 tablename = "chrY"
 library(Genominator)
 coverage.file = ExpData(dbFilename = dbfile,tablename="chrY")
@@ -608,7 +601,8 @@ save(coverage.means.men, file="coverage.means.men-rev.rda")
 
 
 png("MAplots.png", width=700, height=900) ## need to convert the png --> eps with conversion tool
-par(mfrow=c(4,3),oma=c(0,0,0,0),mar=c(1.5,1.8,1.5,1),mgp=c(0.7,0.1,0))
+
+par(mfrow=c(1,3))
 
 ## us:
 male.avg = rowMeans(log2(coverage.means[,-c(3,4,7,8,13,14)]+32))
@@ -623,34 +617,13 @@ plot(all.avg, sex.diff,xlab="A",ylab="M",col="#FF000050",main="DER Finder - sex"
 plot(male.avg,male.diff,col="#0000FF50",xlab="A",ylab="M",main="DER Finder - males",xlim=c(5,10),ylim=c(-1,5),pch=19, cex.axis=0.7,tck=-0.005)
 plot(all.avg, sex.diff,xlab="A",ylab="M",col="#FF000050",main="DER Finder - overlaid",xlim=c(5,10),ylim=c(-1,5),pch=19, cex.axis=0.7,tck=-0.005)
 points(male.avg,male.diff,col="#0000FF50",pch=19)
-
-cufflinksA = (log2(tx.sex.cuff.y.ok$value_male+0.5)+log2(tx.sex.cuff.y.ok$value_female+0.5))/2
-cufflinksM = log2(tx.sex.cuff.y.ok$value_male+0.5)-log2(tx.sex.cuff.y.ok$value_female+0.5)
-cufflinksA.null = (log2(tx.null.cuff.y.ok$value_m1+0.5)+log2(tx.null.cuff.y.ok$value_m2+0.5))/2
-cufflinksM.null = log2(tx.null.cuff.y.ok$value_m1+0.5)-log2(tx.null.cuff.y.ok$value_m2+0.5)
-plot(cufflinksA, cufflinksM, xlab="A", ylab="M", main="Cuffdiff - sex", col="#FF000050", ylim=c(-13,13), xlim=c(-1,8),pch=19, cex.axis=0.7,tck=-0.005)
-plot(cufflinksA.null, cufflinksM.null, xlab="A", ylab="M", main="Cuffdiff - males", col="#0000FF50", ylim=c(-13,13), xlim=c(-1,8),pch=19, cex.axis=0.7,tck=-0.005)
-plot(cufflinksA, cufflinksM, xlab="A", ylab="M", main="Cuffdiff - overlaid", col="#FF000050", ylim=c(-13,13), xlim=c(-1,8),pch=19, cex.axis=0.7,tck=-0.005)
-points(cufflinksA.null, cufflinksM.null, xlab="A", ylab="M", col="#0000FF50",pch=19)
-
-## edgeR
-plot(edger.results$logCPM, edger.results$logFC,col="#FF000050",xlab="A",ylab="M",ylim=c(-7,16),xlim=c(0,18),main="EdgeR - sex",pch=19, cex.axis=0.7,tck=-0.005)
-plot(edger.results.men$logCPM, edger.results.men$logFC, col="#0000FF50", xlab="A",ylab="M",ylim=c(-7,16), xlim=c(0,18),main="EdgeR - males",pch=19, cex.axis=0.7,tck=-0.005)
-plot(edger.results$logCPM, edger.results$logFC,col="#FF000050",xlab="A",ylab="M",ylim=c(-7,16),xlim=c(0,18),main="EdgeR - overlaid",pch=19,  cex.axis=0.7,tck=-0.005)
-points(edger.results.men$logCPM, edger.results.men$logFC,col="#0000FF50",pch=19)
-
-## DESeq:
-plot((log2(deseq.table$baseMeanA+0.5)+log2(deseq.table$baseMeanB+0.5))/2, log2(deseq.table$baseMeanA+0.5)-log2(deseq.table$baseMeanB+0.5),xlab="A",ylab="M",main="DESeq - sex",col="#FF000050",ylim=c(-5,13), xlim=c(-1,13),pch=19,  cex.axis=0.7,tck=-0.005)
-plot((log2(deseq.table.men$baseMeanA+0.5)+log2(deseq.table.men$baseMeanB+0.5))/2, log2(deseq.table.men$baseMeanA+0.5)-log2(deseq.table.men$baseMeanB+0.5),xlab="A",ylab="M",main="DESeq - males",col="#0000FF50",xlim=c(-1,13), ylim=c(-4,13),pch=19,  cex.axis=0.7,tck=-0.005)
-plot((log2(deseq.table$baseMeanA+0.5)+log2(deseq.table$baseMeanB+0.5))/2, log2(deseq.table$baseMeanA+0.5)-log2(deseq.table$baseMeanB+0.5),xlab="A",ylab="M",main="DESeq - overlaid",col="#FF000050",ylim=c(-5,13), xlim=c(-1,13),pch=19,  cex.axis=0.7,tck=-0.005)
-points((log2(deseq.table.men$baseMeanA+0.5)+log2(deseq.table.men$baseMeanB+0.5))/2, log2(deseq.table.men$baseMeanA+0.5)-log2(deseq.table.men$baseMeanB+0.5),col="#0000FF50",pch=19)
 dev.off()
-
-
 ```
 
 ## Figure 4
-We'll want to remove anything related to the other three methods. We're just going to try to reproduce the plot for DER Finder.
+
+We'll want to remove anything related to the other three methods. We're just going to try to reproduce the plot for DER Finder. Unfortunately, the plot that we produce looks nothing like that in the original paper.
+
 ```{r code-for-fig4}
 # percentile vs. %MF plot [FIGURE 4]
 regions.menA = regions.men
@@ -689,127 +662,13 @@ t.percentile = NULL
 for(i in 1:length(us.res$t)){ t.percentile[i] = 1-i/length(us.res$t)}
 
 
-cuff.t = tx.sex.cuff.y.ok$test_stat
-cuff.t = ifelse(cuff.t>20,20,cuff.t)
-cuff.t = ifelse(cuff.t<(-20),-20,cuff.t)
-cuff.fchange = tx.sex.cuff.y.ok$log2fchange
-cuff.fchange = ifelse(cuff.fchange>20,20,cuff.fchange)
-cuff.fchange = ifelse(cuff.fchange<(-20),-20,cuff.fchange)
-
-cuff.t.m = tx.null.cuff.y.ok$test_stat
-cuff.t.m = ifelse(cuff.t.m>20,20,cuff.t.m)
-cuff.t.m = ifelse(cuff.t.m<(-20),-20,cuff.t.m)
-cuff.fchange.m = tx.null.cuff.y.ok$log2fchange
-cuff.fchange.m = ifelse(cuff.fchange.m>20,20,cuff.fchange.m)
-cuff.fchange.m = ifelse(cuff.fchange.m<(-20),-20,cuff.fchange.m)
-
-cuff.t.all = c(cuff.t,cuff.t.m)
-cuff.fchange[which(tx.sex.cuff.y.ok$log2fchange<(-20))] = -20
-cuff.fc.all = c(cuff.fchange, cuff.fchange.m)
-cuff.p.tmp = tx.sex.cuff.y.ok$pvalue
-# positive p-values
-cuff.p.tmp[which(tx.sex.cuff.y.ok$test_stat<(-20) | (tx.sex.cuff.y.ok$test_stat>0 & tx.sex.cuff.y.ok$test_stat<=20))] = 1-cuff.p.tmp[which(tx.sex.cuff.y.ok$test_stat<(-20) | (tx.sex.cuff.y.ok$test_stat>0 & tx.sex.cuff.y.ok$test_stat<=20))]
-# negative p-values
-cuff.p.tmp[which(tx.sex.cuff.y.ok$test_stat>20 | (tx.sex.cuff.y.ok$test_stat<0 & tx.sex.cuff.y.ok$test_stat>(-20)))] = cuff.p.tmp[which(tx.sex.cuff.y.ok$test_stat>20 | (tx.sex.cuff.y.ok$test_stat<0 & tx.sex.cuff.y.ok$test_stat>(-20)))] - 1
-head(data.frame(tx.sex.cuff.y.ok, cuff.p.tmp),100)
-
-cuff.p.tmp.null = tx.null.cuff.y.ok$pvalue
-# positives:
-cuff.p.tmp.null[which(tx.null.cuff.y.ok$test_stat<(-20) | (tx.null.cuff.y.ok$test_stat>0 & tx.null.cuff.y.ok$test_stat<=20))] = 1-cuff.p.tmp.null[which(tx.null.cuff.y.ok$test_stat<(-20) | (tx.null.cuff.y.ok$test_stat>0 & tx.null.cuff.y.ok$test_stat<=20))]
-# negatives:
-cuff.p.tmp.null[which(tx.null.cuff.y.ok$test_stat>20 | (tx.null.cuff.y.ok$test_stat<0 & tx.null.cuff.y.ok$test_stat>(-20)))] = cuff.p.tmp.null[which(tx.null.cuff.y.ok$test_stat>20 | (tx.null.cuff.y.ok$test_stat<0 & tx.null.cuff.y.ok$test_stat>(-20)))]-1
-head(data.frame(tx.null.cuff.y.ok, cuff.p.tmp.null), 100)
-
-cuff.p.all = c(cuff.p.tmp, cuff.p.tmp.null)
-cuff.exp = c(rep("sex",length(cuff.t)), rep("men",length(cuff.t.m)))
-cuff.res = data.frame(t=cuff.t.all, exp = cuff.exp, p = cuff.p.all)
-cuff.res = cuff.res[order(cuff.res$p,decreasing=T),]
-
-cuff.p.rle = rle(cuff.res$p)
-cuff.p.rle = data.frame(lengths=cuff.p.rle$lengths,values=cuff.p.rle$values)
-for(k in which(cuff.p.rle$lengths>1)){
-  inds = which(cuff.res$t==cuff.p.rle$values[k])
-  cuff.res$exp[inds] = sample(cuff.res$exp[inds])
-}
-cuff.pct = NULL
-for(i in 1:nrow(cuff.res)){
-  cuff.pct[i] = sum(cuff.res$exp[1:i]=="sex")/i
-}
-p.percentile = NULL
-for(i in 1:length(cuff.res$p)){ p.percentile[i] = 1-i/length(cuff.res$p)}
-
-
-edger.results$exp = rep("sex",nrow(edger.results))
-edger.results.men$exp = rep("men",nrow(edger.results.men))
-edger.fc = c(edger.results$logFC,edger.results.men$logFC)
-esp = edger.results$PValue
-esp[edger.results$logFC<0] = -esp[edger.results$logFC<0]
-enp = edger.results.men$PValue
-enp[edger.results.men$logFC<0] = -enp[edger.results.men$logFC<0] # has positive fold changes indicating overexpression in men
-
-edger.p = c(esp, enp)
-edger.exp = c(edger.results$exp, edger.results.men$exp)
-edger.logCPM = c(edger.results$logCPM, edger.results.men$logCPM)
-edger.res = data.frame(fc = edger.fc, exp = edger.exp, p=edger.p)
-edger.res = edger.res[is.finite(edger.logCPM),]
-edger.res = edger.res[order(1/edger.res$p,decreasing=T),]
-# handle ties (randomly sample labels):
-p.rle = rle(edger.res$p)
-p.rle = data.frame(lengths=p.rle$lengths,values=p.rle$values)
-for(k in which(p.rle$lengths>1)){
-  inds = which(edger.res$p==p.rle$values[k])
-  edger.res$exp[inds] = sample(edger.res$exp[inds])
-}
-edger.pct = NULL
-for(i in 1:nrow(edger.res)){
-  edger.pct[i] = sum(edger.res$exp[1:i]=="sex")/i
-}
-
-ep.percentile = NULL
-for(i in 1:length(edger.res$p)){ ep.percentile[i] = 1-i/length(edger.res$p)}
-
-deseq.table$exp = rep("sex",nrow(deseq.table))
-deseq.table.men$exp = rep("men",nrow(deseq.table.men))
-deseq.fc = c(-deseq.table$log2FoldChange,-deseq.table.men$log2FoldChange)
-dsp = deseq.table$pval
-dsp[which(deseq.table$log2FoldChange>0)] = -dsp[which(deseq.table$log2FoldChange>0)] #DESeq has negative fold changes indicating overexpression in men.
-dnp = deseq.table.men$pval
-dnp[which(deseq.table.men$log2FoldChange>0)] = -dnp[which(deseq.table.men$log2FoldChange>0)]
-deseq.p = c(dsp, dnp)
-
-deseq.exp = c(deseq.table$exp, deseq.table.men$exp)
-deseq.res = data.frame(fc = deseq.fc, exp = deseq.exp, p=deseq.p)
-deseq.res = deseq.res[order(1/deseq.p,decreasing=T),]
-deseq.res = deseq.res[!is.nan(deseq.res$fc),]
-
-# handle ties (randomly sample labels):
-p.rle.d = rle(deseq.res$p)
-p.rle.d = data.frame(lengths=p.rle.d$lengths,values=p.rle.d$values)
-for(k in which(p.rle.d$lengths>1)){
-  inds = which(deseq.res$p==p.rle.d$values[k])
-  deseq.res$exp[inds] = sample(deseq.res$exp[inds])
-}
-deseq.pct = NULL
-for(i in 1:nrow(deseq.res)){
-  deseq.pct[i] = sum(deseq.res$exp[1:i]=="sex")/i
-}
-d.percentile = NULL
-for(i in 1:length(deseq.res$p)){ d.percentile[i] = 1-i/length(deseq.res$p)}
-
-
 ## finally, the plot:
 #mycols = c("dodgerblue2","orange","green3","darkorchid3")
 plot(t.percentile,us.pct,type="l",ylim=c(0.55,1),xlab="p-value percentile",ylab="Percent from Male vs. Female Comparisons",lwd=2,xlim=c(0.5,1), lty=1)
-lines(p.percentile,cuff.pct,lwd=2, lty=2)
-lines(ep.percentile, edger.pct,lwd=2, lty=3)
-lines(d.percentile, deseq.pct,lwd=2, lty=6)
 legend("topleft",lty=c(1,2,3,6),c("DER Finder","Cufflinks","EdgeR","DESeq"),lwd=c(4,4,4,4))
 
 plot(1-t.percentile,us.pct,type="l",xlab="p-value percentile",ylab="Percent from Male vs. Female Comparisons",lwd=2,xlim=c(0,0.4),ylim=c(0.55,1),xaxt="n",lty=1)
 axis(1,at=c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8),labels=c(1,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2))
-lines(1-p.percentile,cuff.pct,lty=4,lwd=2)
-lines(1-ep.percentile, edger.pct,lty=3,lwd=2)
-lines(1-d.percentile, deseq.pct,lty=2,lwd=2)
 legend("bottomleft",lty=c(1,4,3,2),c("DER Finder","Cufflinks","EdgeR","DESeq"),lwd=c(2,2,2,2))
 
 ### make this as an EPS -- THIS WAS THE ONE USED IN THE PAPER
@@ -818,9 +677,6 @@ setEPS()
 postscript("p-rank-plot-zoom.eps")
 plot(1-t.percentile,us.pct,type="l",xlab="p-value percentile",ylab="Percent from Male vs. Female Comparisons",lwd=4,col=mycols[1],xlim=c(0,0.4),ylim=c(0.55,1),xaxt="n")
 axis(1,at=c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8),labels=c(1,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2))
-lines(1-p.percentile,cuff.pct,col=mycols[2],lwd=4)
-lines(1-ep.percentile, edger.pct,col=mycols[3],lwd=4)
-lines(1-d.percentile, deseq.pct,col=mycols[4],lwd=4)
 legend("bottomleft",col=mycols,c("DER Finder","Cuffdiff","EdgeR","DESeq"),lwd=c(4,4,4,4))
 dev.off()
 
@@ -829,9 +685,6 @@ setEPS()
 postscript("p-rank-plot-zoom-bw.eps")
 plot(1-t.percentile,us.pct,type="l",xlab="p-value percentile",ylab="Percent from Male vs. Female Comparisons",lwd=2,xlim=c(0,0.4),ylim=c(0.55,1),xaxt="n",lty=1)
 axis(1,at=c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8),labels=c(1,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2))
-lines(1-p.percentile,cuff.pct,lty=4,lwd=2)
-lines(1-ep.percentile, edger.pct,lty=3,lwd=2)
-lines(1-d.percentile, deseq.pct,lty=2,lwd=2)
 legend("bottomleft",lty=c(1,4,3,2),c("DER Finder","Cufflinks","EdgeR","DESeq"),lwd=c(2,2,2,2))
 dev.off()
 
