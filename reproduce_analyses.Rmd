@@ -32,7 +32,7 @@ suppressMessages(library('proto'))
 # Alignment and indexing .bam files
 The reads have already been aligned using Tophat and are provided in the repo (located in the `data` folder), but we need to index the .bam files  using [samtools](http://samtools.sourceforge.net/). Since `samtools` is already set up on the server, we can use the bash shell tool in RStudio (Tools > Shell) to run the following code:
 
-```{bash, eval = F}
+```{engine=bash, eval = F}
 # cd into data folder
 cd data
 
@@ -120,7 +120,7 @@ chr.table = data.frame(pos, chr.table)
 write.table(chr.table, file='tophatY-updated', row.names=FALSE, quote=FALSE, sep="\t")
 ```
 
-Now we can start using the `derfinder` package and run the code in `analysis_code.R`.
+Now we can start using the `derfinder` package and run the code in the derfinder github repo `analysis_code.R`.
 
 # Analysis
 
