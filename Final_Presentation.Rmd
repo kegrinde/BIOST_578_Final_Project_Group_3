@@ -95,9 +95,5 @@ comparing DER Finder to other methods:
 
 Advantages and limitations of this approach
 
-## Thanks!
-Many thanks to the original authors for their documentation, code, and data on github that made it much easier to reproduce their results! 
-Thanks also to Raphael and Brian for giving us the knowledge and resources necessary to complete this project.
-
 ## Questions?
 
