@@ -222,15 +222,44 @@ plot(all.avg, sex.diff,xlab="A",ylab="M",col="#FF000050",main="DER Finder - over
 points(male.avg,male.diff,col="#0000FF50",pch=19)
 ```
 
+Recall: these figures show the relationship between average expression (M) for each region and its magnitude of differental expression (fold change; A)
+
 ## Reproducing figures: MA plots (Figure 3)
 
-But the original figure looks like this: 
+But the original figure looks like this. Just as we would expect, we see large fold changes in expression when comparing males to females, but not much change comparing males to each other.
 
 ![Original Figure](orig_figure_3.PNG)
 
-## Discussion
+## Conclusions regarding DER Finder
 
-Advantages and limitations of this approach
+The paper found: 
+
+- many DERs on Y chromosome between males and females
+- quite a few of thse were novel (not previously annotated)
+- no DE comparing males and males
+- performance better than Cufflinks, comparable with EdgeR and DESeq
+- major advantafe: is not limited to previously annotated features
+
+## Conclusions regarding our reproduction of results
+
+We were able to:
+
+- Download and process the data
+- Calculate coverage, generate a coverage matrix, fit the linear model, find DERs, and assess their significance
+- Reproduce some of their figures
+
+However, clearly something has gone wrong somewhere in this process.
+
+## Reproducing results: Issues encountered
+
+The `derfinder` package was written in an older version of R. Since then, some things have changed...
+
+- functions deprecated
+- updates made, bugs fixed in packages
+- packages removed from CRAN
+- updates made to public databases (such as Ensembl genome used for annotation)
+
+Conclusion: Even "reproducible research" is not always reproducible!
 
 ## Questions?
 
