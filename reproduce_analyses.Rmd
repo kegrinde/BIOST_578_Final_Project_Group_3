@@ -1,0 +1,861 @@
+---
+title: "reproduce_analyses"
+author: "Kelsey Grinde"
+date: "3/2/2015"
+output: html_document
+---
+
+# Introduction
+This code is mostly identical to that provided on the [DER Finder Github Rerpo](https://github.com/alyssafrazee/derfinder), with modifications made to deal with issues that I believe are stemming from the fact that the `derfinder` package was built using an older version of R and so some of the packages it calls have since been updated. There is also at least one file missing that prevents us from fully reproducing the results for the comparision to Cufflinks.
+
+# Installing `derfinder` package and dependencies
+
+We'll install `derfinder` straight from github, as well as other packages that are needed for our analyses. It's important to make sure to use version 1.0.2 (the beta version from github) rather than version 1.0.10 which can be downloaded from bioconductor.
+
+```{r install-packages,cache=TRUE}
+suppressMessages(library(devtools))
+suppressMessages(install_github('derfinder', 'alyssafrazee'))
+suppressMessages(library(derfinder))
+
+sessionInfo() # make sure it's version 1.0.2 of derfinder
+
+# we can see that in load derfinder we also loaded:
+# locfdr, HiddenMarkov, limma, Genominator, splines
+
+# load remaining dependencies:
+suppressMessages(library('GenomicFeatures'))
+suppressMessages(library('rtracklayer'))
+suppressMessages(library('RSQLite.extfuns'))
+suppressMessages(library('proto'))
+``` 
+
+# Alignment and indexing .bam files
+The reads have already been aligned using Tophat and are provided in the repo (located in the `data` folder), but we need to index the .bam files  using [samtools](http://samtools.sourceforge.net/). Since `samtools` is already set up on the server, we can use the bash shell tool in RStudio (Tools > Shell) to run the following code:
+
+```{bash, eval = F}
+# cd into data folder
+cd data
+
+# for each sample (.bam file) in the folder, run: samtools index file.bam
+samtools index orbFrontalF11_Y.bam
+samtools index orbFrontalF1_Y.bam
+samtools index orbFrontalF23_Y.bam
+samtools index orbFrontalF2_Y.bam
+samtools index orbFrontalF32_Y.bam
+samtools index orbFrontalF33_Y.bam
+samtools index orbFrontalF3_Y.bam
+samtools index orbFrontalF40_Y.bam
+samtools index orbFrontalF42_Y.bam
+samtools index orbFrontalF43_Y.bam
+samtools index orbFrontalF47_Y.bam
+samtools index orbFrontalF53_Y.bam
+samtools index orbFrontalF55_Y.bam
+samtools index orbFrontalF56_Y.bam
+samtools index orbFrontalF58_Y.bam
+```
+
+# Calculate coverage for each base
+Then we need to calculate the coverage for each base. To do this, first go back to the root directory (`cd ~/Documents/derfinder`) and then run `countReads.py` on each file in the data subdirectory. Alyssa's README warns it might take awhile, but it only took us a few minutes on the server, again using the bash shell with interface through RStudio (Tools > Shell).
+
+```{python, eval = F}
+python countReads.py -f data/orbFrontalF11_Y.bam -o orbFrontalF11_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF1_Y.bam -o orbFrontalF1_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF23_Y.bam -o orbFrontalF23_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF2_Y.bam -o orbFrontalF2_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF32_Y.bam -o orbFrontalF32_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF33_Y.bam -o orbFrontalF33_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF3_Y.bam -o orbFrontalF3_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF40_Y.bam -o orbFrontalF40_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF42_Y.bam -o orbFrontalF42_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF43_Y.bam -o orbFrontalF43_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF47_Y.bam -o orbFrontalF47_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF53_Y.bam -o orbFrontalF53_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF55_Y.bam -o orbFrontalF55_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF56_Y.bam -o orbFrontalF56_Y_bybp -k 101 -c Y
+python countReads.py -f data/orbFrontalF58_Y.bam -o orbFrontalF58_Y_bybp -k 101 -c Y
+```
+
+# Merge coverage files
+Next we need to merge all the coverage files we created above to get a single coverage matrix (with the coverage for each base in each sample). This will take awhile, but it creates the file `tophatY-updated` which we need later on in our analyses.
+
+```{r create-tophatY-updated,eval=F,cache=TRUE}
+chr = "Y"
+
+# sample IDs
+samps = c("orbFrontalF1", "orbFrontalF2", "orbFrontalF3", "orbFrontalF11", "orbFrontalF23", "orbFrontalF32", "orbFrontalF33", "orbFrontalF40", "orbFrontalF42", "orbFrontalF43", "orbFrontalF47", "orbFrontalF53", "orbFrontalF55", "orbFrontalF56", "orbFrontalF58")
+
+# read in each sample:
+countlist = list()
+for(s in 1:length(samps)){
+    print(paste("reading: sample",samps[s]))
+    y = read.table(paste0(samps[s], "_Y_bybp"), sep="\t", header=FALSE)
+    print("done reading.")
+    countlist[[s]] = y$V2
+    if(s==1) pos = y$V1
+    if(s>1){
+        if(length(y$V1)>length(pos)) pos = y$V1
+    }
+    rm(y);gc();gc();gc();gc()
+  }
+```
+
+This takes quite a while to run, so I saved all the output (`countlist`) in `derfinder_files.RData`. In the future, we just need to open that file instead of running the code chunk above.
+
+Once we have the `countlist`, we merge the samples together to create the file `tophatY-updated` (our coverage matrix) which we use in our futher analyses. Writing this file takes a long time as well, but once it is done we have saved all the information we need in a file we can load in later any time we need this information, rather than re-running this chunk of code.
+
+```{r create-tophatY-updated, eval =F}
+# instead of running the chunk above, everything is stored and we just load it in: 
+# Note: this file contains the object countlist which is used below
+load('derfinder_files.RData')
+
+
+# put samples together and zero-pad as needed:
+thelen = length(pos)
+for(i in 1:length(countlist)){
+    countlist[[i]] = c(countlist[[i]],rep(0,thelen-length(countlist[[i]])))
+}
+names(countlist) = samps
+chr.table = as.data.frame(countlist)
+chr.table = data.frame(pos, chr.table)
+write.table(chr.table, file='tophatY-updated', row.names=FALSE, quote=FALSE, sep="\t")
+```
+
+Now we can start using the `derfinder` package and run the code in `analysis_code.R`.
+
+# Analysis
+
+## Part 1: Male vs Female Analysis
+
+First, we'll compare the 9 males to the 6 females. We expect that almost all genomic features will be differentially expressed between males and females since we're looking at the Y chromosome. 
+
+Our coverage matrix, stored in `tophatY-updated`, is very large, so converting it to a database will make it easier to manipulate. We planned to use the `makeDb` function in the `derfinder` package to do this. However, we encountered some issues using this function which we have traced to the fact that it is calling two functions (`read.csv.sql` and `sqldf`), which were at the time of creation of the `derfinder` package copies of the functions with the same names in the `sqldf` package. However, the `sqldf` package has since been modified to address, among other things, a bug that we run into when we run `makeDb`. So, we created a new version of this function, which we call `fixed_makeDb` that is identical to `makeDb` except it calls the updated `read.csv.sql` and `sqldf` functions. There are still some issues here that need to be worked out. I got my `fixed_makeDb` function to work once and generate the database but have had a difficult time trying to get it to work again since then.
+
+```{r create-database}
+dbfile = "Y-tophat-revised-kegrinde.db"
+tablename = "chrY"
+textfile = "tophatY-updated"
+
+## makeDb calls a function read.csv.sql, which calls an oudated version of sqldf which makes the following code not work if calling makeDb()
+## We need to replace the code for sqldf with the updated version (downloaded from CRAN) that fixes this bug
+## So, get the updated version of the read.csv.sql and sqldf functions from sqldf, then use my fixed_makeDb function
+
+library(sqldf)
+source('~/Documents/derfinder/R/fixed_makeDb_kegrinde.R')
+
+# make database
+fixed_makeDb(dbfile = dbfile, tablename = tablename, textfile = textfile, cutoff = 5)
+```
+
+Now we can use LIMMA to fit the linear model and look for differential expression at each base between males and females. The function `getLimmaInput` is just calling `lmFit` underneath to get the fit. We save the results in a file `posY-rev.rda` for future reference.
+
+```{r run-lm, eval = F}
+sex = c(1,1,0,0,1,1,0,0,1,1,1,1,0,0,1) #based on the samples in textfile
+limma.input = getLimmaInput(dbfile = dbfile, tablename = tablename, group = sex, nonzero = TRUE)
+pos = limma.input$pos
+save(pos, file="posY-rev.rda") # save the position IDs
+```
+
+Then we get the modified t-statistics and log-fold changes using the same process we use with LIMMA. The function `getTstats` is doing just what `eBayes()` does. We save the results in a file `ttY-rev.rda` for future reference.
+
+```{r get-tstats,eval=F}
+tstats = getTstats(fit = limma.input$ebobject, trend = TRUE)
+tt = tstats$tt
+logfchange = tstats$logfchange
+save(tt,file="ttY-rev.rda") # save the t-statistics for each position
+```
+
+Then we fit the HMM to find the regions that are behaving similarly with respect to expression. Again, we save our results for future use in an `.rda` file.
+
+```{r hmm, eval=F}
+find.them = getParams(tt) # got a warning here: In find.mean.up(0.99, null.mean = fdrmodel$fp0[3, 1], null.sd = fdrmodel$fp0[3,  :Numerical estimation of DE-up mean failed.  Defaulting to mean = 95th percentile of estimated null distribution, sd = sd of estimated null distribution.
+regions = getRegions(method = "HMM", chromosome = "Y", pos = pos, tstats = tt, stateprobs = find.them$stateprobs, params = find.them$params, includet = TRUE, includefchange = TRUE, fchange = logfchange)
+
+# merge the regions:
+regions.merged.y = mergeRegions(regions$states)
+save("regions.merged.y",file="Ychrom-regions-merged-new-rev.rda")
+  # this saves a data.frame with the chromosome name, start and end positions, 
+  # HMM state, length of region, mean tstat and mean fold change for each region
+head(regions.merged.y)
+dim(regions.merged.y) # we identify 22347 regions
+```
+
+Now we assess significance of association of each region with expresion levels using a permutation test to find the DERs. This takes some time so we save our results for future reference in `Y-pvals-new-rev.rda`.
+
+```{r p-vals,eval=F}
+# get the p-values:
+##### define p-value function to print status messages & the total number of null statistics, which we needed for one of the reviewer responses.
+get.pvals <- function (regions, dbfile, tablename, num.perms = 1, group, est.params, chromosome, colsubset = c(-1)){
+  nullstats = NULL
+  for (i in 1:num.perms) {
+    group.permute = sample(group)
+    print(paste("starting iteration",i))
+    limma.input = getLimmaInput(dbfile = dbfile, tablename = tablename,group = group.permute, colsubset = colsubset, nonzero = TRUE)
+    tstats = getTstats(fit = limma.input$ebobject, trend = TRUE)
+    tt = tstats$tt
+    logfchange = tstats$logfchange
+    regions.null = getRegions(method = "HMM", chromosome = chromosome,
+                              pos = limma.input$pos, tstats = tt, stateprobs = est.params$stateprobs,
+                              params = est.params$params, includet = TRUE, includefchange = TRUE,
+                              fchange = logfchange)
+    nullstats = append(nullstats, regions.null$states$mean.t[regions.null$states$state == 3 | regions.null$states$state == 4])
+  }
+  print("Number of null stats:")
+  print(length(nullstats))
+  pvals = rep(NA, dim(regions)[1])
+  for (k in which(regions$state == 3 | regions$state == 4)) {
+    pvals[k] = (sum(abs(nullstats) > abs(regions$mean.t[k]))+1)/(length(nullstats)+1)
+  }
+  return(pvals)
+}
+
+# Warning: this takes one hour
+pvals = get.pvals(regions = regions.merged.y, dbfile = dbfile, tablename = tablename, num.perms = 10, group = sex, est.params = find.them, chromosome = "Y")
+save(pvals, file="Y-pvals-new-rev.rda")
+  # this saves a vector of 22347 pvalues (one per region)
+```
+
+Then we can download annotation information and try to match our identified regions up with regions that have been previously annotated.
+
+```{r annotate,eval=F}
+# get the flags:
+exons = getAnnotation("hg19","knownGene") # get warning: 
+# I get an error when I try to run the function getFlags(): getFlags(regions = regions.merged.y, exons, "chrY", pctcut = 0.8)
+# I believe the problem is due to the fact that the chromosome information is stored as chrY in some files and just Y in others. I've fixed the issues in the function fixed_getFlags()
+source('~/Documents/derfinder/R/fixed_getFlags_kegrinde.R')
+myflags = fixed_getFlags(regions = regions.merged.y, exons, 'chrY', pctcut = 0.8)
+save(myflags, file="Y-flags-new-rev.rda")
+}
+```
+
+## Part 2: Male vs Male Analysis
+
+Now we compare a random sample of five of our males to the other four. We expect not to see any differential expression comparing these two groups of men.
+
+So, we'll split our men into two samples and then fit our linear model at each base to assess differential expression.
+
+```{r run-lm-males,eval = F}
+to.use = c(2,3,6,7,10,11,12,13,16) # males
+set.seed(651)
+sex = sample(c(rep(1,5),rep(0,4))) #randomly assign groups of males
+limma.input = getLimmaInput(dbfile = dbfile, tablename = tablename, group = sex, colsubset = to.use, nonzero = TRUE)
+pos_men = limma.input$pos 
+identical(pos_men,pos) # this is the same as above for the women
+```
+
+Just as above, we get the modified t-statistics and log-fold changes, fit the HMM, and get p-values for our identified regions. 
+
+```{r ebayes-men, eval = F}
+# get the moderated t stats and fold changes:
+tstats = getTstats(fit = limma.input$ebobject, trend = TRUE)
+tt = tstats$tt
+logfchange = tstats$logfchange
+save(tt,file="ttY-men-rev.rda")
+
+# fit the HMM:
+find.them = getParams(tt)
+regions = getRegions(method = "HMM", chromosome = "Y", pos = pos, tstats = tt, stateprobs = find.them$stateprobs, params = find.them$params, includet = TRUE, includefchange = TRUE, fchange = logfchange)
+
+# merge the regions:
+regions.merged.y = mergeRegions(regions$states)
+save("regions.merged.y",file="Ychrom-regions-merged-men-rev.rda")
+head(regions.merged.y) # same information stored as above for women
+dim(regions.merged.y) # however, now we only have 19,736 regions
+
+# get the p-values: (uses same "debugging get.pvals" as above)
+pvals = get.pvals(regions = regions.merged.y, dbfile =dbfile,tablename = tablename, num.perms = 10, group = sex, est.params = find.them, chromosome = "Y", colsubset = to.use)
+save(pvals, file="Y-pvals-men-rev.rda") # now we save 19736 pvals, one per region
+```
+
+## Analyze Results
+
+First we'll get the exon annotation information. When this code was first written by the authors, they got the ENSEMBL GRCh37 version, but when we run this same code we now get GRCh38, which appears to have a few more annotated exons.
+
+```{r get-exon-data, eval = F}
+## load in the exon annotation (ENSEMBL GRCh37) --> now GRCh38
+library(biomaRt)
+ensembl = useMart("ensembl")
+listDatasets(ensembl)[which(listDatasets(ensembl)$dataset == "hsapiens_gene_ensembl"),]
+### For the original authors, this gave VERSION = GRCh37.p12, but now it's GRCh38
+ensembl = useDataset("hsapiens_gene_ensembl", mart = ensembl)
+filters = listFilters(ensembl)
+attributes = listAttributes(ensembl)
+ensexons = getBM(attributes=c("ensembl_gene_id", "ensembl_transcript_id", 
+                              "ensembl_exon_id", "chromosome_name", "exon_chrom_start", 
+                              "exon_chrom_end", "strand"), mart=ensembl)
+# ^takes a few minutes
+names(ensexons)[3] = "exon_id"
+names(ensexons)[1] = "geneName"
+names(ensexons)[4] = "chr"
+names(ensexons)[5] = "start"
+names(ensexons)[6] = "end"
+ensYexons = subset(ensexons, chr=="Y")
+nrow(ensYexons)  # the authors found 3748 exons, some duplicated. We find I have 4566. It makes sense that there would be more known annotated regions now vs a year or two ago when this code was originally written
+ensYexons = ensYexons[!duplicated(ensYexons$exon_id),]
+save(ensYexons, file="ensYexons.rda")
+dim(ensYexons) # this is a 3,487 by 7 data.frame with geneName, transcript ID, exon ID, chromosome, start and end position, and strand (either -1 or 1)
+```
+
+Now we can pull in our results for DER Finder that we ran and saved above.
+
+```{r load-results}
+## load results from our pipeline:
+load("ensYexons.rda")
+load("Ychrom-regions-merged-men-rev.rda") #regions.merged.y
+regions.merged.men = regions.merged.y
+load("Ychrom-regions-merged-new-rev.rda") #also regions.merged.y
+load("Y-pvals-men-rev.rda") #pvals
+pvals.men = pvals
+load("Y-pvals-new-rev.rda") #also pvals
+
+# put results into a data frame with info about regions, pvalues and adjusted pvalues
+regions = data.frame(regions.merged.y,pvals,qvals = p.adjust(pvals, method="fdr"))
+regions.men = data.frame(regions.merged.men,pvals = pvals.men, qvals = p.adjust(pvals.men, method="fdr"))
+```
+
+We can plot a histogram of our p-values to check what they look like. The histogram for the males should look more or less uniform because we expect no differential expression. These figures are not presented in the original paper so it's hard to say whether we have been able to reproduce their results thus far.
+
+```{r pval-hist} 
+### P VALUE HISTOGRAMS - check
+hist(pvals,breaks=30,col="gray70",main="Y chromosome p values: our method",xlab="p values") # honestly this doesn't look like what I would have expected, but we'll see if our later results match up
+hist(pvals.men,breaks=30,col="gray70",main="Y chromosome p values: our method, men only",xlab="p values")  # I think this should be more or less uniform
+```
+
+Then we pull out a subset of the data, only the DERs, and line them up with the ENXEMBL exons (if possible).
+
+```{r annotate-DERs, echo = F}
+### get data frame of only DE regions (with p and q-values)
+ders = subset(regions,state==3|state==4)
+dim(ders) # 6350 of original 22347 are DE
+ders.men = subset(regions.men, state==3|state==4)
+dim(ders.men) # 6811 of original 19736 are DE
+
+# re-create myflags with ensembl exons
+myflags = getFlags(regions = regions.merged.y, ensYexons, "Y", pctcut = 0.8)
+myflags.men = getFlags(regions = regions.merged.men, ensYexons, "Y", pctcut = 0.8)
+save(myflags, file="Y-flags-ensembl.rda")
+save(myflags.men, file="Y-flags-men-ensembl.rda")
+
+ders = data.frame(ders,flag = myflags$flags) # is each DER novel or already known?
+ders.men = data.frame(ders.men,flag=myflags.men$flags)
+
+# line up exons with p-values (i.e., get rid of the list situation)
+info.lengths = sapply(myflags$flag.info, length, USE.NAMES=FALSE)
+qvals.ex = ex.names = ex.pct = ex.class = list()
+for(i in 1:length(myflags$flags)){
+  qvals.ex[[i]] = rep(ders$qvals[i],info.lengths[i])
+  ex.names[[i]] = myflags$flag.info[[i]]
+  ex.pct[[i]] = myflags$percent.exon[[i]]
+  ex.class[[i]] = rep(myflags$flags[i],info.lengths[i])
+}
+qvals.ex = unlist(qvals.ex)
+ex.names = unlist(ex.names)
+ex.class = unlist(ex.class)
+ex.pct = unlist(ex.pct)
+
+myinfo = data.frame(qvals.ex, ex.names, ex.class, ex.pct, stringsAsFactors=FALSE)
+write.table(myinfo, file="myinfo_ensembl.txt",row.names=F,quote=F,sep="\t")
+
+# fix places where exons are covered by >1 different region
+#### RULES: if different parts of the same exon were overlapped 
+#### by different DE regions, that exon was reduced to just one 
+#### row, and the region was then flagged as DE if those combined 
+#### regions overlapped the exon by 80%.  The q-value of 
+#### the largest region making up that exon's covering was taken
+#### as the q-value for that exon. 
+#### (So if an exon was at least 80% overlapped by DERs 
+#### with q<0.05, it was called DE at the 0.05 level.)  
+rep_exons = names(table(myinfo$ex.names))[table(myinfo$ex.names)>1]
+repsub = subset(myinfo, ex.names %in% rep_exons)
+percentsplit = split(repsub$ex.pct, repsub$ex.names)
+qsplit = split(repsub$qvals.ex, repsub$ex.names)
+sum(names(qsplit) != rep_exons) ## should be zero... something's wrong here
+newpct = sapply(percentsplit, sum, USE.NAMES=FALSE)
+newq = sapply(1:length(qsplit), function(i){
+    qsplit[[i]][which.max(percentsplit[[i]])]
+}, USE.NAMES=FALSE)
+newclass = ifelse(newpct>=0.8, "DE exons(s)", NA)
+myinfo.updated = subset(myinfo, !(ex.names %in% rep_exons))
+myinfo.updated = rbind(myinfo.updated, data.frame(qvals.ex = newq, 
+    ex.names=names(qsplit), ex.class=newclass, ex.pct=newpct))
+rownames(myinfo.updated) = NULL
+
+myinfo.sub = subset(myinfo.updated, ex.class!="novel")
+nrow(myinfo.sub) # authors had 467 exons # KEG: I only have 22...
+
+checkunique = function(x){
+  sum(ensYexons$exon_id==x)
+}
+checkexons = unlist(lapply(myinfo.updated$ex.names, checkunique))
+table(checkexons) #no id issues
+foo = which(unlist(lapply(myinfo.updated$ex.names, checkunique))>1)
+
+# same thing for men:
+info.lengths.m = sapply(myflags.men$flag.info, length, USE.NAMES=FALSE)
+qvals.ex.m = ex.names.m = ex.pct.m = ex.class.m = list()
+for(i in 1:length(myflags.men$flags)){
+  qvals.ex.m[[i]] = rep(ders.men$qvals[i],info.lengths.m[i])
+  ex.names.m[[i]] = myflags.men$flag.info[[i]]
+  ex.pct.m[[i]] = myflags.men$percent.exon[[i]]
+  ex.class.m[[i]] = rep(myflags.men$flags[i],info.lengths.m[i])
+}
+qvals.ex.m = unlist(qvals.ex.m)
+ex.names.m = unlist(ex.names.m)
+ex.class.m = unlist(ex.class.m)
+ex.pct.m = unlist(ex.pct.m)
+myinfo.m = data.frame(qvals.ex.m, ex.names.m, ex.class.m, ex.pct.m)
+min(myinfo.m$qvals.ex.m) #the min q-value here is 0.86, so nothing will show up in the table. # KEG: mine is 0.935
+
+### KEG: I think differences in results are due to different ensembl file...
+
+```
+
+In the paper, the authors present some statistics which we currently are unable to replicate...
+```{r stats-in-paper}
+# some miscellaneous statistics (included in results/text of manuscript)
+sum(ders$qvals<0.05) #534
+sum(ders$qvals<0.05 & ders$state==4) #6
+length(which(ders$flag=="novel" & ders$qvals<0.05)) #280
+summary(ders$length[which(ders$flag=="novel" & ders$qvals<0.05)]) #range: 1-3814
+de.exons = myinfo.sub$ex.names[which(myinfo.sub$qvals.ex<0.05 & myinfo.sub$ex.pct>=0.8)]
+length(unique(de.exons)) #411, and "novel" is not included.
+genes.represented = ensYexons$geneName[which(ensYexons$exon_id %in% unique(de.exons))]
+length(unique(genes.represented)) #33
+min(ders.men$qvals) #0.86
+min(tx.sex.cuff.y.ok$qvalue) #0.45
+min(tx.null.cuff.y.ok$qvalue) #0.63
+sum(tx.sex.cuff.y.ok$value_female==0 & tx.sex.cuff.y.ok$value_male!=0) #736
+```
+
+Next the paper gets results for three other methods: Cufflinks, DESeq, and EdgeR but this is beyond the scope of our project (plus, it looks like we're missing a file we need to get the Cufflinks results).
+
+# Reproducing Figures
+
+## Figure 1
+Reproducing this figure relies on a file (`chr22exons.rda`) which is not in the github repo, so we are unable to reproduce this figure.
+
+```{r code-for-fig1, eval = F, echo = F}
+#### FIGURE 1
+load("chr22exons.rda")
+xx = exondata22[exondata22$exon_chrom_start>20936000 & exondata22$exon_chrom_end<20946000 & exondata22$exon_chrom_start < 20941000,]
+dim(xx) #108 rows
+length(unique(xx$ensembl_exon_id)) #40 unique exons by id
+length(unique(xx$ensembl_transcript_id)) #15 transcripts
+
+setEPS(width=12, height=6)
+postscript("exons.eps")
+#colored_exons = NULL
+par(mfrow=c(1,2))
+
+### transcript structures
+xax = seq(min(xx$exon_chrom_start), max(xx$exon_chrom_end), by=1)
+plot(xax, rep(0,length(xax)), ylim=c(0,17), type="n", xlab="Genomic Position", yaxt = "n", ylab="")
+title("(a) Annotated Transcripts: Ensembl 61, Chromosome 22")
+for(tx in unique(as.character(xx$ensembl_transcript_id))){
+    txind = which(unique(xx$ensembl_transcript_id)==tx)
+    gtsub = xx[xx$ensembl_transcript_id==tx,]
+    gtsub = gtsub[order(gtsub$exon_chrom_start),]
+    for(exind in 1:nrow(gtsub)){
+      #mycolor = ifelse(as.character(gtsub$ensembl_exon_id[exind]) %in% colored_exons, "white","gray60")
+      mycolor = "gray60"
+      polygon(x=c(gtsub$exon_chrom_start[exind], 
+        gtsub$exon_chrom_start[exind], 
+        gtsub$exon_chrom_end[exind], 
+        gtsub$exon_chrom_end[exind]), 
+        y=c(txind-0.4,txind+0.4,txind+0.4,txind-0.4), 
+        col=mycolor)
+      if(exind != nrow(gtsub)) lines(c(gtsub$exon_chrom_end[exind],gtsub$exon_chrom_start[exind+1]),c(txind, txind), lty=2, col="gray60")
+      #colored_exons = append(as.character(gtsub$ensembl_exon_id[exind]), colored_exons)  
+    }
+}
+#legend("bottomright", pch=15, col="gray60", "unique exon")
+
+### overlapping exons
+olap_exons = subset(xx, exon_chrom_start<20941000 & exon_chrom_start>20940500 &
+  exon_chrom_end<20942000 & exon_chrom_end>20941500)
+olap_exons = olap_exons[which(!duplicated(olap_exons[,c(5,6)])),]
+xax = seq(olap_exons$exon_chrom_start[1]-100, max(olap_exons$exon_chrom_end)+100, by=1)
+plot(xax, rep(0,length(xax)), ylim=c(0.5,4.5), 
+  type="n", xlab="Genomic Position", yaxt = "n", ylab="", 
+  xlim=c(20941800, 20941950))
+for(i in seq_along(olap_exons[,1])){
+  polygon(x=c(olap_exons$exon_chrom_start[i], 
+    olap_exons$exon_chrom_start[i],
+    olap_exons$exon_chrom_end[i],
+    olap_exons$exon_chrom_end[i]), 
+    y=c(i-0.4, i+0.4, i+0.4, i-0.4),
+    col="gray60")
+}
+title("(b) Close-up of Exon Annotation Differences")
+dev.off()
+
+```
+
+## Figure 2
+
+```{r code-for-fig2}
+## setup for plotting:
+gro = list()
+gro$states = regions.merged.y
+states.norle.temp = inverse.rle(list(lengths=regions.merged.y$length, values=regions.merged.y$state)) 
+load("posY-rev.rda") # should already be loaded, but just in case
+load("ttY-rev.rda") # should already be loaded, but just in case
+states.norle.temp2 = states.norle.temp[pos-pos[1]+1]
+gro$states.norle=data.frame(pos=pos, states=states.norle.temp2)
+rm(states.norle.temp, states.norle.temp2);gc();gc();gc()
+group = c(1,1,0,0,1,1,0,0,1,1,1,1,0,0,1) 
+group.l = ifelse(group==1,"male","female")
+ensYexons.forplot = ensYexons
+names(ensYexons.forplot)[1] = "geneName"
+names(ensYexons.forplot)[3] = "name"
+
+
+
+## find some exons:
+#(make sure to first run the "setup for plotting" section earlier)
+
+myinfo.cmp = subset(myinfo.sub, ex.names %in% rownames(edger.results))
+plotExon(gro, exonname = "ENSE00001435537", tstats = tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="Y", group=group.l, scalefac=32, ylim=c(4.2,8), bppad=500)
+
+myinfo.cmp[108,] #q=0.001, 61.3% of an exon
+edger.results[which(rownames(edger.results)=="ENSE00001435537"),] #q=1
+des.res[des.res$id=="ENSE00001435537",] #q=1
+
+which(regions.merged.y$length>400 & regions.merged.y$state==3)[100]
+plotRegion(gro, ind=13047, tstats=tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="chrY", group=group.l,scalefac=32, ylim=c(4.5, 7.5))
+
+setEPS()
+postscript("wrong-exon-II.eps")
+plotExon(gro, exonname = "ENSE00001435537", tstats = tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="Y", group=group.l, scalefac=32, ylim=c(4.2,8), bppad=500)
+dev.off()
+
+regions.merged.y[45,]
+ders[which(ders$start== 2714305),] #q = 0.006
+
+derinds = as.numeric(rownames(ders))
+derinds.interesting = derinds[which(ders$length>250 & ders$flag=="novel DE region")] #these are not indices but are row names for regions.merged.y
+plotinds = which(rownames(regions.merged.y) %in% derinds.interesting)
+pdf("novel_plots.pdf")
+for(i in plotinds){
+  plotRegion(gro, ind=i, tstats=tt, pos=pos, annotation=Yexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="chrY", group=group.l,scalefac=32,ylim=c(5,7), legendloc = "topleft")
+  
+}
+dev.off()
+
+# after examining the "novel_plots.pdf" file:
+which(regions.merged.y$start==20662506) #11154
+plotRegion(gro, ind=11154, tstats=tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="chrY", group=group.l,scalefac=32,ylim=c(5,7), legendloc = "topleft")
+# great, plus overlaps ESTs but no genes.
+# get the q-value:
+which(ders$start==20662506) #1670
+ders[1670,] #q=0.001
+
+
+## combine these two figures into one: [FIGURE 2 in paper]
+source("multipanel.R") # just allows you to plot >1 pretty plot in same frame (i.e. par call is removed -- otherwise same as defined plotExon function)
+
+setEPS(width=12, height=6)
+postscript("examples-combined.eps")
+par(mfcol=c(3,2), mar=c(1,3.2,2,1), mgp=c(1.5,0.5,0), cex.lab=1.5, omi=c(0.4,0,0,0))
+### panel (a)
+plotExon.nopar(gro, exonname = "ENSE00001435537", tstats = tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="Y", group=group.l, scalefac=32, ylim=c(4.9,8.3), bppad=500, plottitle = "(a) chrY: 22737611 - 22737773")
+
+### panel (b)
+plotRegion.nopar(gro, ind=11154, tstats=tt, pos=pos, annotation=ensYexons.forplot, counts="Y-tophat-revised.db", tabname="chrY", chromosome="Y", group=group.l,scalefac=32,ylim=c(5,7.3), legendloc = "topright", plottitle = "(b) chrY: 20662506 - 20662937")
+mtext("genomic position", side=1, outer=TRUE, adj=0.22, padj=1)
+mtext("genomic position", side=1, outer=TRUE, adj=0.8, padj=1)
+
+dev.off()
+
+
+```
+
+## Figure 3
+
+```{r code-for-fig3}
+#(b)  MA plots [FIGURE 3]
+
+# for DER Finder - get mean coverage for each sample for each region.
+coverage.means = matrix(nrow = dim(regions.merged.y)[1], ncol = 15)
+dbfile = "Y-tophat-revised.db"
+tablename = "chrY"
+library(Genominator)
+coverage.file = ExpData(dbFilename = dbfile,tablename="chrY")
+
+for(i in 1:dim(regions.merged.y)[1]){
+  print(i)
+  if(regions.merged.y$state[i]==1) {coverage.means[i,] <- 0; next}
+  firstind = which(pos==regions.merged.y$start[i])
+  lastind = which(pos==regions.merged.y$end[i])
+  coverage.means[i,] = colMeans(coverage.file[firstind:lastind,-1])
+}
+
+save(coverage.means, file="coverage.means.sex-rev.rda")
+# load("coverage.means.sex-rev.rda") # if above has already been done
+
+
+# same for men:
+coverage.means.men = matrix(nrow = dim(regions.merged.men)[1], ncol=15)
+# this will have data for all the samples, but we're only using one at a time and we won't use a female one.
+for(i in 1:dim(regions.merged.men)[1]){
+  print(i)
+  if(regions.merged.men$state[i]==1) {coverage.means.men[i,] <- 0; next}
+  firstind = which(pos==regions.merged.men$start[i])
+  lastind = which(pos==regions.merged.men$end[i])
+  coverage.means.men[i,] = colMeans(coverage.file[firstind:lastind,-1])
+}
+save(coverage.means.men, file="coverage.means.men-rev.rda")
+# load("coverage.means.men-rev.rda") # if the above has already been done
+
+
+png("MAplots.png", width=700, height=900) ## need to convert the png --> eps with conversion tool
+par(mfrow=c(4,3),oma=c(0,0,0,0),mar=c(1.5,1.8,1.5,1),mgp=c(0.7,0.1,0))
+
+## us:
+male.avg = rowMeans(log2(coverage.means[,-c(3,4,7,8,13,14)]+32))
+male.avg.nolog = rowMeans(coverage.means[,-c(3,4,7,8,13,14)])
+female.avg.nolog = rowMeans(coverage.means[,c(3,4,7,8,13,14)])
+maleA.avg.nolog = rowMeans(coverage.means[,c(1,2,9,12,15)])
+maleB.avg.nolog = rowMeans(coverage.means[,c(5,6,10,11)])
+all.avg = rowMeans(log2(coverage.means+32))
+male.diff = log2(maleA.avg.nolog+32)-log2(maleB.avg.nolog+32)
+sex.diff = log2(male.avg.nolog+32)-log2(female.avg.nolog+32)
+plot(all.avg, sex.diff,xlab="A",ylab="M",col="#FF000050",main="DER Finder - sex",xlim=c(5,10),ylim=c(-1,5),pch=19, cex.axis=0.7,tck=-0.005)
+plot(male.avg,male.diff,col="#0000FF50",xlab="A",ylab="M",main="DER Finder - males",xlim=c(5,10),ylim=c(-1,5),pch=19, cex.axis=0.7,tck=-0.005)
+plot(all.avg, sex.diff,xlab="A",ylab="M",col="#FF000050",main="DER Finder - overlaid",xlim=c(5,10),ylim=c(-1,5),pch=19, cex.axis=0.7,tck=-0.005)
+points(male.avg,male.diff,col="#0000FF50",pch=19)
+
+cufflinksA = (log2(tx.sex.cuff.y.ok$value_male+0.5)+log2(tx.sex.cuff.y.ok$value_female+0.5))/2
+cufflinksM = log2(tx.sex.cuff.y.ok$value_male+0.5)-log2(tx.sex.cuff.y.ok$value_female+0.5)
+cufflinksA.null = (log2(tx.null.cuff.y.ok$value_m1+0.5)+log2(tx.null.cuff.y.ok$value_m2+0.5))/2
+cufflinksM.null = log2(tx.null.cuff.y.ok$value_m1+0.5)-log2(tx.null.cuff.y.ok$value_m2+0.5)
+plot(cufflinksA, cufflinksM, xlab="A", ylab="M", main="Cuffdiff - sex", col="#FF000050", ylim=c(-13,13), xlim=c(-1,8),pch=19, cex.axis=0.7,tck=-0.005)
+plot(cufflinksA.null, cufflinksM.null, xlab="A", ylab="M", main="Cuffdiff - males", col="#0000FF50", ylim=c(-13,13), xlim=c(-1,8),pch=19, cex.axis=0.7,tck=-0.005)
+plot(cufflinksA, cufflinksM, xlab="A", ylab="M", main="Cuffdiff - overlaid", col="#FF000050", ylim=c(-13,13), xlim=c(-1,8),pch=19, cex.axis=0.7,tck=-0.005)
+points(cufflinksA.null, cufflinksM.null, xlab="A", ylab="M", col="#0000FF50",pch=19)
+
+## edgeR
+plot(edger.results$logCPM, edger.results$logFC,col="#FF000050",xlab="A",ylab="M",ylim=c(-7,16),xlim=c(0,18),main="EdgeR - sex",pch=19, cex.axis=0.7,tck=-0.005)
+plot(edger.results.men$logCPM, edger.results.men$logFC, col="#0000FF50", xlab="A",ylab="M",ylim=c(-7,16), xlim=c(0,18),main="EdgeR - males",pch=19, cex.axis=0.7,tck=-0.005)
+plot(edger.results$logCPM, edger.results$logFC,col="#FF000050",xlab="A",ylab="M",ylim=c(-7,16),xlim=c(0,18),main="EdgeR - overlaid",pch=19,  cex.axis=0.7,tck=-0.005)
+points(edger.results.men$logCPM, edger.results.men$logFC,col="#0000FF50",pch=19)
+
+## DESeq:
+plot((log2(deseq.table$baseMeanA+0.5)+log2(deseq.table$baseMeanB+0.5))/2, log2(deseq.table$baseMeanA+0.5)-log2(deseq.table$baseMeanB+0.5),xlab="A",ylab="M",main="DESeq - sex",col="#FF000050",ylim=c(-5,13), xlim=c(-1,13),pch=19,  cex.axis=0.7,tck=-0.005)
+plot((log2(deseq.table.men$baseMeanA+0.5)+log2(deseq.table.men$baseMeanB+0.5))/2, log2(deseq.table.men$baseMeanA+0.5)-log2(deseq.table.men$baseMeanB+0.5),xlab="A",ylab="M",main="DESeq - males",col="#0000FF50",xlim=c(-1,13), ylim=c(-4,13),pch=19,  cex.axis=0.7,tck=-0.005)
+plot((log2(deseq.table$baseMeanA+0.5)+log2(deseq.table$baseMeanB+0.5))/2, log2(deseq.table$baseMeanA+0.5)-log2(deseq.table$baseMeanB+0.5),xlab="A",ylab="M",main="DESeq - overlaid",col="#FF000050",ylim=c(-5,13), xlim=c(-1,13),pch=19,  cex.axis=0.7,tck=-0.005)
+points((log2(deseq.table.men$baseMeanA+0.5)+log2(deseq.table.men$baseMeanB+0.5))/2, log2(deseq.table.men$baseMeanA+0.5)-log2(deseq.table.men$baseMeanB+0.5),col="#0000FF50",pch=19)
+dev.off()
+
+
+```
+
+## Figure 4
+We'll want to remove anything related to the other three methods. We're just going to try to reproduce the plot for DER Finder.
+```{r code-for-fig4}
+# percentile vs. %MF plot [FIGURE 4]
+regions.menA = regions.men
+regions.A = regions
+ders.men = subset(regions.men, state==3|state==4)
+ders = subset(regions, state==3|state==4)
+regions = ders
+regions.men = ders.men
+regions$exp = rep("sex",dim(regions)[1])
+regions.men$exp = rep("men",dim(regions.men)[1])
+us.t = c(regions$mean.t,regions.men$mean.t)
+us.exp = c(regions$exp, regions.men$exp)
+us.state = c(regions$state, regions.men$state)
+us.length = c(regions$length, regions.men$length)
+usp = regions$pvals
+usp[regions$mean.t<0] = -usp[regions$mean.t<0]
+unp = regions.men$pvals
+unp[regions.men$mean.t<0] = -unp[regions.men$mean.t<0] # pos t means overexpressed in men
+us.p = c(usp,unp)
+us.res = data.frame(t = us.t, exp = us.exp, p=us.p)
+us.res = us.res[us.length>=102,]
+us.res = us.res[order(1/us.res$p,decreasing=T),]
+# handle ties (randomly sample labels):
+p.rle = rle(us.res$p)
+p.rle = data.frame(lengths=p.rle$lengths,values=p.rle$values)
+for(k in which(p.rle$lengths>1)){
+  inds = which(us.res$p==p.rle$values[k])
+  us.res$exp[inds] = sample(us.res$exp[inds])
+}
+
+us.pct = NULL
+for(i in 1:nrow(us.res)){
+  us.pct[i] = sum(us.res$exp[1:i]=="sex")/i
+}
+t.percentile = NULL
+for(i in 1:length(us.res$t)){ t.percentile[i] = 1-i/length(us.res$t)}
+
+
+cuff.t = tx.sex.cuff.y.ok$test_stat
+cuff.t = ifelse(cuff.t>20,20,cuff.t)
+cuff.t = ifelse(cuff.t<(-20),-20,cuff.t)
+cuff.fchange = tx.sex.cuff.y.ok$log2fchange
+cuff.fchange = ifelse(cuff.fchange>20,20,cuff.fchange)
+cuff.fchange = ifelse(cuff.fchange<(-20),-20,cuff.fchange)
+
+cuff.t.m = tx.null.cuff.y.ok$test_stat
+cuff.t.m = ifelse(cuff.t.m>20,20,cuff.t.m)
+cuff.t.m = ifelse(cuff.t.m<(-20),-20,cuff.t.m)
+cuff.fchange.m = tx.null.cuff.y.ok$log2fchange
+cuff.fchange.m = ifelse(cuff.fchange.m>20,20,cuff.fchange.m)
+cuff.fchange.m = ifelse(cuff.fchange.m<(-20),-20,cuff.fchange.m)
+
+cuff.t.all = c(cuff.t,cuff.t.m)
+cuff.fchange[which(tx.sex.cuff.y.ok$log2fchange<(-20))] = -20
+cuff.fc.all = c(cuff.fchange, cuff.fchange.m)
+cuff.p.tmp = tx.sex.cuff.y.ok$pvalue
+# positive p-values
+cuff.p.tmp[which(tx.sex.cuff.y.ok$test_stat<(-20) | (tx.sex.cuff.y.ok$test_stat>0 & tx.sex.cuff.y.ok$test_stat<=20))] = 1-cuff.p.tmp[which(tx.sex.cuff.y.ok$test_stat<(-20) | (tx.sex.cuff.y.ok$test_stat>0 & tx.sex.cuff.y.ok$test_stat<=20))]
+# negative p-values
+cuff.p.tmp[which(tx.sex.cuff.y.ok$test_stat>20 | (tx.sex.cuff.y.ok$test_stat<0 & tx.sex.cuff.y.ok$test_stat>(-20)))] = cuff.p.tmp[which(tx.sex.cuff.y.ok$test_stat>20 | (tx.sex.cuff.y.ok$test_stat<0 & tx.sex.cuff.y.ok$test_stat>(-20)))] - 1
+head(data.frame(tx.sex.cuff.y.ok, cuff.p.tmp),100)
+
+cuff.p.tmp.null = tx.null.cuff.y.ok$pvalue
+# positives:
+cuff.p.tmp.null[which(tx.null.cuff.y.ok$test_stat<(-20) | (tx.null.cuff.y.ok$test_stat>0 & tx.null.cuff.y.ok$test_stat<=20))] = 1-cuff.p.tmp.null[which(tx.null.cuff.y.ok$test_stat<(-20) | (tx.null.cuff.y.ok$test_stat>0 & tx.null.cuff.y.ok$test_stat<=20))]
+# negatives:
+cuff.p.tmp.null[which(tx.null.cuff.y.ok$test_stat>20 | (tx.null.cuff.y.ok$test_stat<0 & tx.null.cuff.y.ok$test_stat>(-20)))] = cuff.p.tmp.null[which(tx.null.cuff.y.ok$test_stat>20 | (tx.null.cuff.y.ok$test_stat<0 & tx.null.cuff.y.ok$test_stat>(-20)))]-1
+head(data.frame(tx.null.cuff.y.ok, cuff.p.tmp.null), 100)
+
+cuff.p.all = c(cuff.p.tmp, cuff.p.tmp.null)
+cuff.exp = c(rep("sex",length(cuff.t)), rep("men",length(cuff.t.m)))
+cuff.res = data.frame(t=cuff.t.all, exp = cuff.exp, p = cuff.p.all)
+cuff.res = cuff.res[order(cuff.res$p,decreasing=T),]
+
+cuff.p.rle = rle(cuff.res$p)
+cuff.p.rle = data.frame(lengths=cuff.p.rle$lengths,values=cuff.p.rle$values)
+for(k in which(cuff.p.rle$lengths>1)){
+  inds = which(cuff.res$t==cuff.p.rle$values[k])
+  cuff.res$exp[inds] = sample(cuff.res$exp[inds])
+}
+cuff.pct = NULL
+for(i in 1:nrow(cuff.res)){
+  cuff.pct[i] = sum(cuff.res$exp[1:i]=="sex")/i
+}
+p.percentile = NULL
+for(i in 1:length(cuff.res$p)){ p.percentile[i] = 1-i/length(cuff.res$p)}
+
+
+edger.results$exp = rep("sex",nrow(edger.results))
+edger.results.men$exp = rep("men",nrow(edger.results.men))
+edger.fc = c(edger.results$logFC,edger.results.men$logFC)
+esp = edger.results$PValue
+esp[edger.results$logFC<0] = -esp[edger.results$logFC<0]
+enp = edger.results.men$PValue
+enp[edger.results.men$logFC<0] = -enp[edger.results.men$logFC<0] # has positive fold changes indicating overexpression in men
+
+edger.p = c(esp, enp)
+edger.exp = c(edger.results$exp, edger.results.men$exp)
+edger.logCPM = c(edger.results$logCPM, edger.results.men$logCPM)
+edger.res = data.frame(fc = edger.fc, exp = edger.exp, p=edger.p)
+edger.res = edger.res[is.finite(edger.logCPM),]
+edger.res = edger.res[order(1/edger.res$p,decreasing=T),]
+# handle ties (randomly sample labels):
+p.rle = rle(edger.res$p)
+p.rle = data.frame(lengths=p.rle$lengths,values=p.rle$values)
+for(k in which(p.rle$lengths>1)){
+  inds = which(edger.res$p==p.rle$values[k])
+  edger.res$exp[inds] = sample(edger.res$exp[inds])
+}
+edger.pct = NULL
+for(i in 1:nrow(edger.res)){
+  edger.pct[i] = sum(edger.res$exp[1:i]=="sex")/i
+}
+
+ep.percentile = NULL
+for(i in 1:length(edger.res$p)){ ep.percentile[i] = 1-i/length(edger.res$p)}
+
+deseq.table$exp = rep("sex",nrow(deseq.table))
+deseq.table.men$exp = rep("men",nrow(deseq.table.men))
+deseq.fc = c(-deseq.table$log2FoldChange,-deseq.table.men$log2FoldChange)
+dsp = deseq.table$pval
+dsp[which(deseq.table$log2FoldChange>0)] = -dsp[which(deseq.table$log2FoldChange>0)] #DESeq has negative fold changes indicating overexpression in men.
+dnp = deseq.table.men$pval
+dnp[which(deseq.table.men$log2FoldChange>0)] = -dnp[which(deseq.table.men$log2FoldChange>0)]
+deseq.p = c(dsp, dnp)
+
+deseq.exp = c(deseq.table$exp, deseq.table.men$exp)
+deseq.res = data.frame(fc = deseq.fc, exp = deseq.exp, p=deseq.p)
+deseq.res = deseq.res[order(1/deseq.p,decreasing=T),]
+deseq.res = deseq.res[!is.nan(deseq.res$fc),]
+
+# handle ties (randomly sample labels):
+p.rle.d = rle(deseq.res$p)
+p.rle.d = data.frame(lengths=p.rle.d$lengths,values=p.rle.d$values)
+for(k in which(p.rle.d$lengths>1)){
+  inds = which(deseq.res$p==p.rle.d$values[k])
+  deseq.res$exp[inds] = sample(deseq.res$exp[inds])
+}
+deseq.pct = NULL
+for(i in 1:nrow(deseq.res)){
+  deseq.pct[i] = sum(deseq.res$exp[1:i]=="sex")/i
+}
+d.percentile = NULL
+for(i in 1:length(deseq.res$p)){ d.percentile[i] = 1-i/length(deseq.res$p)}
+
+
+## finally, the plot:
+#mycols = c("dodgerblue2","orange","green3","darkorchid3")
+plot(t.percentile,us.pct,type="l",ylim=c(0.55,1),xlab="p-value percentile",ylab="Percent from Male vs. Female Comparisons",lwd=2,xlim=c(0.5,1), lty=1)
+lines(p.percentile,cuff.pct,lwd=2, lty=2)
+lines(ep.percentile, edger.pct,lwd=2, lty=3)
+lines(d.percentile, deseq.pct,lwd=2, lty=6)
+legend("topleft",lty=c(1,2,3,6),c("DER Finder","Cufflinks","EdgeR","DESeq"),lwd=c(4,4,4,4))
+
+plot(1-t.percentile,us.pct,type="l",xlab="p-value percentile",ylab="Percent from Male vs. Female Comparisons",lwd=2,xlim=c(0,0.4),ylim=c(0.55,1),xaxt="n",lty=1)
+axis(1,at=c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8),labels=c(1,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2))
+lines(1-p.percentile,cuff.pct,lty=4,lwd=2)
+lines(1-ep.percentile, edger.pct,lty=3,lwd=2)
+lines(1-d.percentile, deseq.pct,lty=2,lwd=2)
+legend("bottomleft",lty=c(1,4,3,2),c("DER Finder","Cufflinks","EdgeR","DESeq"),lwd=c(2,2,2,2))
+
+### make this as an EPS -- THIS WAS THE ONE USED IN THE PAPER
+#### COLOR
+setEPS()
+postscript("p-rank-plot-zoom.eps")
+plot(1-t.percentile,us.pct,type="l",xlab="p-value percentile",ylab="Percent from Male vs. Female Comparisons",lwd=4,col=mycols[1],xlim=c(0,0.4),ylim=c(0.55,1),xaxt="n")
+axis(1,at=c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8),labels=c(1,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2))
+lines(1-p.percentile,cuff.pct,col=mycols[2],lwd=4)
+lines(1-ep.percentile, edger.pct,col=mycols[3],lwd=4)
+lines(1-d.percentile, deseq.pct,col=mycols[4],lwd=4)
+legend("bottomleft",col=mycols,c("DER Finder","Cuffdiff","EdgeR","DESeq"),lwd=c(4,4,4,4))
+dev.off()
+
+#### BLACK AND WHITE
+setEPS()
+postscript("p-rank-plot-zoom-bw.eps")
+plot(1-t.percentile,us.pct,type="l",xlab="p-value percentile",ylab="Percent from Male vs. Female Comparisons",lwd=2,xlim=c(0,0.4),ylim=c(0.55,1),xaxt="n",lty=1)
+axis(1,at=c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8),labels=c(1,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2))
+lines(1-p.percentile,cuff.pct,lty=4,lwd=2)
+lines(1-ep.percentile, edger.pct,lty=3,lwd=2)
+lines(1-d.percentile, deseq.pct,lty=2,lwd=2)
+legend("bottomleft",lty=c(1,4,3,2),c("DER Finder","Cufflinks","EdgeR","DESeq"),lwd=c(2,2,2,2))
+dev.off()
+
+```
+
+## Supplementary Files Figure 6
+
+This does not look like their figure. We don't see very many small p-values and they see lots.
+```{r code-for-supp-fig-6}
+hist(pvals,breaks=30,col="gray70",main="",xlab="p values",cex.axis=0.7,tck=-0.005, cex.lab = 0.9)
+text(0.5,1030,"DER Finder",cex=1.2,font=2) 
+```
+
+## Supplementary Files Figure 4
+
+```{r}
+# t statistics histogram:
+mp = getParams(tt)
+mp
+
+hist(tt,col="gray70",breaks=100,xlim=c(-5,10), xlab="moderated t statistics from Y chromosome", main="Test statistic distribution", freq=F, ylim=c(0,0.45))
+xax = seq(-5,10,by=0.01)
+lines(xax,mp$stateprobs[2]*dnorm(xax,mean=mp$params$mean[2],sd=mp$params$sd[2]),col="black",lwd=3)
+lines(xax,mp$stateprobs[3]*dnorm(xax,mean=mp$params$mean[3],sd=mp$params$sd[3]),col="red",lwd=3)
+lines(xax,mp$stateprobs[4]*dnorm(xax,mean=mp$params$mean[4],sd=mp$params$sd[4]),col="green",lwd=3)
+legend("topright",lwd=c(3,3,3),col=c("black","red","green"),c("equally expressed","overexpressed-men","overexpressed-women"))
+```

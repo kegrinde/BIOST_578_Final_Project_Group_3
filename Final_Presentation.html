@@ -52,6 +52,25 @@ Kelsey Grinde, Yatong Li, Xiaowen Tian
 <li>relate to LIMMA</li>
 </ul>
 </div>
+<div id="methods---quantify-de-at-each-base-using-linear-model-framework-1" class="slide section level2">
+<h1>Methods - Quantify DE at each base using linear model framework</h1>
+<ul>
+<li>A coverage matrix has rows corresponding to bases and columns corresponding to smaples.</li>
+<li>Each entry <span class="math">\(Y_{ij}\)</span> of the coverage matrix is the number of aligned reads from from sample <span class="math">\(i\)</span> that overlap base <span class="math">\(j\)</span>.</li>
+<li>We fit a linear regression model to each row of the coverage matrix: <span class="math">\[g(Y_{ij}) = \alpha(l_j) + \beta(l_j)X_{pi} + \sum_{k=1}^K \gamma_k(l_j)W_{ik} + \epsilon_{ij}\]</span></li>
+</ul>
+</div>
+<div id="methods---quantify-de-at-each-base-using-linear-model-framework-cont." class="slide section level2">
+<h1>Methods - Quantify DE at each base using linear model framework (cont.)</h1>
+<ul>
+<li><span class="math">\[g(Y_{ij}) = \alpha(l_j) + \beta(l_j)X_{pi} + \sum_{k=1}^K \gamma_k(l_j)W_{ik} + \epsilon_{ij}\]</span></li>
+<li><span class="math">\(\alpha(l_j)\)</span>: baseline gene expression (coverage)</li>
+<li><span class="math">\(X_{i}\)</span>: indicator of whether sample <span class="math">\(i\)</span> is a case or a control</li>
+<li><span class="math">\(\beta(l_j)\)</span>: parameter of interest quantifying differential expression between case and control at location <span class="math">\(l_j\)</span>.</li>
+<li><span class="math">\(W_{ik}\)</span>: values of potential confounders for sample <span class="math">\(i\)</span> (e.g. GC content effect).</li>
+<li><span class="math">\(\epsilon_{ij}\)</span>: residual measurement error at location <span class="math">\(j\)</span>.</li>
+</ul>
+</div>
 <div id="methods---identify-ders-using-hmm" class="slide section level2">
 <h1>Methods - Identify DERs using HMM</h1>
 <ul>
