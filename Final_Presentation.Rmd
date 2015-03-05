@@ -92,7 +92,9 @@ The Experiment:
 
 - RNA-seq reads from brain tissue
 - 9 human males, 6 females
-- Alignment using Tophat
+- Data processing:
+    + Alignment using Tophat
+    + Calculating coverage and generating the coverage matrix
 - Test for DE on Y chromosome using DER Finder, Cufflinks, EdgeR, and DESeq
     + Compare males to females
     + Compare males to other males
@@ -100,22 +102,66 @@ The Experiment:
 
 ## Results - Step one: fitting the model for each base
 
-- The model
-- Step one: get modified t-statistics using LIMMA
+- Fit the model (this should look familiar..)
 
-## Results - Step two: finding the DERs
+```{r fit-linear-model, eval = F, tidy=T}
+# Sex of subjet for each sample (our covariate)
+sex = c(1,1,0,0,1,1,0,0,1,1,1,1,0,0,1)
+# Fit linear model using LIMMA
+limma.input = getLimmaInput(dbfile = dbfile, tablename = tablename, group = sex, nonzero = TRUE)
+# Save the ID for each position where model was fit
+pos = limma.input$pos
+# get moderated t-stats and lfc
+tstats = getTstats(fit = limma.input$ebobject, trend = TRUE)
+tt = tstats$tt
+logfchange = tstats$logfchange
+```
 
-- Step two: group bases into regions using HMMs
+## Results - Steps two, three, and four: finding the DERs, assessing significance, matching to annotated exons
 
-## Results - Step three: assess significance of regions
-
+- Step two: group bases into regions using HMMs (`getRegions` function)
 - Step three: assess significance of each regoin using a permutation test
 - Adjust p-values using Storey and Tibshirani method for controlling FDR
+- Step four [optional]: match identified regions to previously annotated exons
 
-## Results - Step four: assess significance of regions
+These steps take awhile...
 
-- Step three: assess significance of each regoin using a permutation test
-- Adjust p-values using Storey and Tibshirani method for controlling FDR
+## Reproducing results: P-values for males versus males
+
+```{r load-results, echo = F, cache = T}
+## load results from our pipeline:
+load("ensYexons.rda")
+load("Ychrom-regions-merged-men-rev.rda") #regions.merged.y
+regions.merged.men = regions.merged.y
+load("Ychrom-regions-merged-new-rev.rda") #also regions.merged.y
+load("Y-pvals-men-rev.rda") #pvals
+pvals.men = pvals
+load("Y-pvals-new-rev.rda") #also pvals
+
+# put results into a data frame with info about regions, pvalues and adjusted pvalues
+regions = data.frame(regions.merged.y,pvals,qvals = p.adjust(pvals, method="fdr"))
+regions.men = data.frame(regions.merged.men,pvals = pvals.men, qvals = p.adjust(pvals.men, method="fdr"))
+```
+
+```{r, echo = F}
+hist(pvals.men,breaks=30,col="gray70",main="Y chromosome p values: our method, men only",xlab="p values")  # I think this should be more or less uniform
+```
+
+This looks (somewhat) like what we would expect (i.e., uniform).
+
+## Reproducing results: P-values for males versus females
+
+```{r, echo = F}
+hist(pvals,breaks=30,col="gray70",main="Y chromosome p values: our method",xlab="p values") 
+```
+
+Does this look like what we would expect?
+
+## Reproducing results: P-values for males versus females
+
+No. This is what the p-values look like in the original paper: 
+
+
 
 ## Discussion
 
@@ -123,3 +169,8 @@ Advantages and limitations of this approach
 
 ## Questions?
 
+Our full code, data, and results files are available at: https://github.com/kegrinde/BIOST_578_Final_Project_Group_3
+
+Github repo for DER Finder: https://github.com/alyssafrazee/derfinder
+
+More information about DER Finder and other work by the first author at: http://alyssafrazee.com/

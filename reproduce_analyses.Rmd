@@ -8,6 +8,8 @@ output: html_document
 # Introduction
 This code is mostly identical to that provided on the [DER Finder Github Rerpo](https://github.com/alyssafrazee/derfinder), with modifications made to deal with issues that I believe are stemming from the fact that the `derfinder` package was built using an older version of R and so some of the packages it calls have since been updated. There is also at least one file missing that prevents us from fully reproducing the results for the comparision to Cufflinks.
 
+This entire process takes quite a bit of time. At each step, results are saved in `.rda` files, so if you want you may skip ahead to the "Analyze Results" section where we load in these files so you don't have to repeat any of this time consuming process. We should note that the goal of this project was to reproduce the results in the original paper, but we have been unable to do so. Thus, it may be that something happened early on in our analysis pipeline that has caused this difference in results. So, you may want to take the time to go through this lengthly process to generate results yourself at each step rather than relying on the results that we have generated. 
+
 # Installing `derfinder` package and dependencies
 
 We'll install `derfinder` straight from github, as well as other packages that are needed for our analyses. It's important to make sure to use version 1.0.2 (the beta version from github) rather than version 1.0.10 which can be downloaded from bioconductor.
@@ -130,7 +132,7 @@ First, we'll compare the 9 males to the 6 females. We expect that almost all gen
 
 Our coverage matrix, stored in `tophatY-updated`, is very large, so converting it to a database will make it easier to manipulate. We planned to use the `makeDb` function in the `derfinder` package to do this. However, we encountered some issues using this function which we have traced to the fact that it is calling two functions (`read.csv.sql` and `sqldf`), which were at the time of creation of the `derfinder` package copies of the functions with the same names in the `sqldf` package. However, the `sqldf` package has since been modified to address, among other things, a bug that we run into when we run `makeDb`. So, we created a new version of this function, which we call `fixed_makeDb` that is identical to `makeDb` except it calls the updated `read.csv.sql` and `sqldf` functions. There are still some issues here that need to be worked out. I got my `fixed_makeDb` function to work once and generate the database but have had a difficult time trying to get it to work again since then.
 
-```{r create-database}
+```{r create-database, eval = F}
 dbfile = "Y-tophat-revised-kegrinde.db"
 tablename = "chrY"
 textfile = "tophatY-updated"
@@ -268,7 +270,7 @@ save(pvals, file="Y-pvals-men-rev.rda") # now we save 19736 pvals, one per regio
 
 ## Analyze Results
 
-First we'll get the exon annotation information. When this code was first written by the authors, they got the ENSEMBL GRCh37 version, but when we run this same code we now get GRCh38, which appears to have a few more annotated exons. The purpose of annotation is to be able to compare the DER Finder results to the other methods, particulary EdgeR and DESeq, which look for differential expression only in previously annotated regions.
+First we'll get the exon annotation information. When this code was first written by the authors, they got the ENSEMBL GRCh37 version, but when we run this same code we now get GRCh38, which appears to have a few more annotated exons. The purpose of annotation is to be able to compare the DER Finder results to the other methods, particulary EdgeR and DESeq, which look for differential expression only in previously annotated regions. This takes a few minutes, so the results have been stored in the file `ensYexons.rda` for future reference. You can skip to the next section where we load in all our results if you don't want to take the time to load the results yourself. 
 
 ```{r get-exon-data, eval = F}
 ## load in the exon annotation (ENSEMBL GRCh37) --> now GRCh38
