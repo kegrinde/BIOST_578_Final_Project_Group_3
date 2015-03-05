@@ -86,10 +86,36 @@ where $P_b$ is the number of null DERs for permutation $b$.
 
 - This is the percent of null DERs with average statistic as or more extreme than the observed statistic for candidate DER $r$ calculated on the observed data.
 
-## Results
+## Results - Running DER Finder on example data
 
-comparing DER Finder to other methods:
-- Y chromsome example data
+The Experiment: 
+
+- RNA-seq reads from brain tissue
+- 9 human males, 6 females
+- Alignment using Tophat
+- Test for DE on Y chromosome using DER Finder, Cufflinks, EdgeR, and DESeq
+    + Compare males to females
+    + Compare males to other males
+    + Why?
+
+## Results - Step one: fitting the model for each base
+
+- The model
+- Step one: get modified t-statistics using LIMMA
+
+## Results - Step two: finding the DERs
+
+- Step two: group bases into regions using HMMs
+
+## Results - Step three: assess significance of regions
+
+- Step three: assess significance of each regoin using a permutation test
+- Adjust p-values using Storey and Tibshirani method for controlling FDR
+
+## Results - Step four: assess significance of regions
+
+- Step three: assess significance of each regoin using a permutation test
+- Adjust p-values using Storey and Tibshirani method for controlling FDR
 
 ## Discussion
 
