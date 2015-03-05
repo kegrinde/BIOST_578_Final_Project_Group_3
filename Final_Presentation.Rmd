@@ -30,7 +30,7 @@ Outline of talk:
 ## Methods - Quantify DE at each base using linear model framework
 - A coverage matrix has rows corresponding to bases and columns corresponding to samples.
 - Each entry $Y_{ij}$ of the coverage matrix is the number of aligned reads from from sample $i$ that overlap base $j$.
-- We fit a linear regression model to each row of the coverage matrix: $$g(Y_{ij}) = \alpha(l_j) + \beta(l_j)X_{pi} + \sum_{k=1}^K \gamma_k(l_j)W_{ik} + \epsilon_{ij}$$
+- We fit a linear regression model to each row of the coverage matrix: $$g(Y_{ij}) = \alpha(l_j) + \beta(l_j)X_i + \sum_{k=1}^K \gamma_k(l_j)W_{ik} + \epsilon_{ij}$$
 
   
 ## Methods - Quantify DE at each base using linear model framework (cont.)
