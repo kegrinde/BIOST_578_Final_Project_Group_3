@@ -604,6 +604,8 @@ save(coverage.means.men, file="coverage.means.men-rev.rda")
 
 png("MAplots.png", width=700, height=900) ## need to convert the png --> eps with conversion tool
 
+load("coverage.means.sex-rev.rda")
+load("coverage.means.men-rev.rda")
 par(mfrow=c(1,3))
 
 ## us:

@@ -165,6 +165,67 @@ This is what the p-values look like in the original paper:
 
 ## Reproducing figures: MA plots (Figure 3)
 
+```{r ma-plots-setup, echo = F, eval = F}
+### This takes awhile so results stored in .rda file..
+#(b)  MA plots [FIGURE 3]
+
+# for DER Finder - get mean coverage for each sample for each region.
+coverage.means = matrix(nrow = dim(regions.merged.y)[1], ncol = 15)
+dbfile = "Y-tophat-revised-kegrinde.db"
+tablename = "chrY"
+library(Genominator)
+coverage.file = ExpData(dbFilename = dbfile,tablename="chrY")
+
+for(i in 1:dim(regions.merged.y)[1]){
+  print(i)
+  if(regions.merged.y$state[i]==1) {coverage.means[i,] <- 0; next}
+  firstind = which(pos==regions.merged.y$start[i])
+  lastind = which(pos==regions.merged.y$end[i])
+  coverage.means[i,] = colMeans(coverage.file[firstind:lastind,-1])
+}
+
+save(coverage.means, file="coverage.means.sex-rev.rda")
+# load("coverage.means.sex-rev.rda") # if above has already been done
+
+
+# same for men:
+coverage.means.men = matrix(nrow = dim(regions.merged.men)[1], ncol=15)
+# this will have data for all the samples, but we're only using one at a time and we won't use a female one.
+for(i in 1:dim(regions.merged.men)[1]){
+  print(i)
+  if(regions.merged.men$state[i]==1) {coverage.means.men[i,] <- 0; next}
+  firstind = which(pos==regions.merged.men$start[i])
+  lastind = which(pos==regions.merged.men$end[i])
+  coverage.means.men[i,] = colMeans(coverage.file[firstind:lastind,-1])
+}
+```
+
+We can also reproduce the MA plots for DER Finder. They look like this:
+```{r make-ma-plots, echo = F}
+# load in necessary data
+load("coverage.means.sex-rev.rda")
+load("coverage.means.men-rev.rda")
+par(mfrow=c(1,3))
+
+## us:
+male.avg = rowMeans(log2(coverage.means[,-c(3,4,7,8,13,14)]+32))
+male.avg.nolog = rowMeans(coverage.means[,-c(3,4,7,8,13,14)])
+female.avg.nolog = rowMeans(coverage.means[,c(3,4,7,8,13,14)])
+maleA.avg.nolog = rowMeans(coverage.means[,c(1,2,9,12,15)])
+maleB.avg.nolog = rowMeans(coverage.means[,c(5,6,10,11)])
+all.avg = rowMeans(log2(coverage.means+32))
+male.diff = log2(maleA.avg.nolog+32)-log2(maleB.avg.nolog+32)
+sex.diff = log2(male.avg.nolog+32)-log2(female.avg.nolog+32)
+plot(all.avg, sex.diff,xlab="A",ylab="M",col="#FF000050",main="DER Finder - sex",xlim=c(5,10),ylim=c(-1,5),pch=19, cex.axis=0.7,tck=-0.005)
+plot(male.avg,male.diff,col="#0000FF50",xlab="A",ylab="M",main="DER Finder - males",xlim=c(5,10),ylim=c(-1,5),pch=19, cex.axis=0.7,tck=-0.005)
+plot(all.avg, sex.diff,xlab="A",ylab="M",col="#FF000050",main="DER Finder - overlaid",xlim=c(5,10),ylim=c(-1,5),pch=19, cex.axis=0.7,tck=-0.005)
+points(male.avg,male.diff,col="#0000FF50",pch=19)
+```
+
+## Reproducing figures: MA plots (Figure 3)
+
+But the original figure looks like this: 
+
 ![Original Figure](orig_figure_3.PNG)
 
 ## Discussion
