@@ -314,7 +314,7 @@ regions = data.frame(regions.merged.y,pvals,qvals = p.adjust(pvals, method="fdr"
 regions.men = data.frame(regions.merged.men,pvals = pvals.men, qvals = p.adjust(pvals.men, method="fdr"))
 ```
 
-We can plot a histogram of our p-values to check what they look like. The histogram for the males should look more or less uniform because we expect no differential expression. These figures are not presented in the original paper so it's hard to say whether we have been able to reproduce their results thus far.
+We can plot a histogram of our p-values to check what they look like. The histogram for the males should look more or less uniform because we expect no differential expression. These figures are not presented in the original paper so it's hard to say whether we have been able to reproduce their results thus far. We would expect the histogram for males versus females to show way more small p-values, contrary to what we see here. This is our first indication that something has gone wrong..
 
 ```{r pval-hist} 
 ### P VALUE HISTOGRAMS - check

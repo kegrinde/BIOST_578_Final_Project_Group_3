@@ -159,9 +159,13 @@ Does this look like what we would expect?
 
 ## Reproducing results: P-values for males versus females
 
-No. This is what the p-values look like in the original paper: 
+This is what the p-values look like in the original paper: 
 
+![Supplemental Figure 6](orig_supp_fig_6.PNG)
 
+## Reproducing figures: MA plots (Figure 3)
+
+![Original Figure](orig_figure_3.PNG)
 
 ## Discussion
 
