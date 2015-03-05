@@ -78,7 +78,7 @@ python countReads.py -f data/orbFrontalF58_Y.bam -o orbFrontalF58_Y_bybp -k 101 
 # Merge coverage files
 Next we need to merge all the coverage files we created above to get a single coverage matrix (with the coverage for each base in each sample). This will take awhile, but it creates the file `tophatY-updated` which we need later on in our analyses.
 
-```{r create-tophatY-updated,eval=F,cache=TRUE}
+```{r create-tophatY-updated,eval=F}
 chr = "Y"
 
 # sample IDs
