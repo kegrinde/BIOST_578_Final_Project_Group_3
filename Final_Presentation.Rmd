@@ -28,18 +28,13 @@ Outline of talk:
 3. Assess significance of DERs using permutation test
 
 ## Methods - Quantify DE at each base using linear model framework
-
-- explain methods (show the equation, can use latex syntax, e.g., $g(x)=\beta$)
-- relate to LIMMA
-
-## Methods - Quantify DE at each base using linear model framework
-- A coverage matrix has rows corresponding to bases and columns corresponding to smaples.
+- A coverage matrix has rows corresponding to bases and columns corresponding to samples.
 - Each entry $Y_{ij}$ of the coverage matrix is the number of aligned reads from from sample $i$ that overlap base $j$.
 - We fit a linear regression model to each row of the coverage matrix: $$g(Y_{ij}) = \alpha(l_j) + \beta(l_j)X_{pi} + \sum_{k=1}^K \gamma_k(l_j)W_{ik} + \epsilon_{ij}$$
 
   
 ## Methods - Quantify DE at each base using linear model framework (cont.)
-- $$g(Y_{ij}) = \alpha(l_j) + \beta(l_j)X_{pi} + \sum_{k=1}^K \gamma_k(l_j)W_{ik} + \epsilon_{ij}$$
+- $$g(Y_{ij}) = \alpha(l_j) + \beta(l_j)X_i + \sum_{k=1}^K \gamma_k(l_j)W_{ik} + \epsilon_{ij}$$
 - $\alpha(l_j)$: baseline gene expression (coverage)
 - $X_{i}$: indicator of whether sample $i$ is a case or a control
 - $\beta(l_j)$: parameter of interest quantifying differential expression between case and control at location $l_j$.
@@ -56,7 +51,7 @@ Outline of talk:
 3. $D(l) = 2$ if $\beta(l) \neq 0$: regions in the differentially expressed state.
 
 ## Methods - Identify DERs using HMMs (cont.)
-- Each hidden state has a probability, which is roughtly estimated based on the relative frequencies of bases covered or not covered by genes, along with a prior estimate of the number of differentially expressed genes.
+- Each hidden state has a probability, which is roughly estimated based on the relative frequencies of bases covered or not covered by genes, along with a prior estimate of the number of differentially expressed genes.
 - We assume the $s(l)$ follows a normal distribution, conditional on the hidden state of each base $l$.
 - We then estimate the unovserved states $D(l)$ based on the observed statistics $s(l)$ using HMMs.
 
@@ -80,12 +75,12 @@ The permutation procedure:
 
 3. Re-run the HMM on the $s^0(l)$ to identify a set of null DERs: $DER^0_{\rho}$.
 
-4. Calculate the null test statistics for each region and their averages: $DER \bar{s}^0_{\rho} = \sum_{l \in DER^0_\rho}s^0(l)$.
+4. Calculate the null test statistics for each region and their averages: $\bar{s}^0_{\rho} = \sum_{l \in DER^0_\rho}s^0(l)$.
 
 
 ## Methods - Assess significance of DERs using permutation test (cont.)
 
-- Repeat the permutation percedure $B$ times, and calculate $$p_r = \frac{\sum^B_{b=1}\sum^{P_b}_{\rho=1}I(\bar{s}^0_{\rho=1}>\bar{s_r})}{\sum^B_{b=1}P_b}$$
+- Repeat the permutation percedure $B$ times, and calculate $$p_r = \frac{\sum^B_{b=1}\sum^{P_b}_{\rho=1}I(\bar{s}^0_{\rho}>\bar{s_r})}{\sum^B_{b=1}P_b}$$
 
 where $P_b$ is the number of null DERs for permutation $b$.
 
