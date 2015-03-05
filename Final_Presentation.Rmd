@@ -58,6 +58,7 @@ Based on the summarization step, current differential expression analysis method
 ### Annotate-then-identify
 <img src="Images/count_modes.png" width=400>
 
+Different choices in how to count may lead to dramatically different results. Also, there is not ‘correct’ gene model to use. 
 
 ## Introduction & Review
 ### Assemble-then-identify
